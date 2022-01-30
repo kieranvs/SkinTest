@@ -47,13 +47,16 @@ set(ASSIMP_BUILD_TESTS OFF CACHE BOOL "" FORCE)
 add_subdirectory(dependencies/assimp)
 
 set_target_properties(assimp PROPERTIES FOLDER "Libraries/Assimp")
-set_target_properties(UpdateAssimpLibsDebugSymbolsAndDLLs PROPERTIES FOLDER "Libraries/Assimp")
-set_target_properties(zlibstatic PROPERTIES FOLDER "Libraries/Assimp")
+if (WIN32)
+	set_target_properties(UpdateAssimpLibsDebugSymbolsAndDLLs PROPERTIES FOLDER "Libraries/Assimp")
+	set_target_properties(zlibstatic PROPERTIES FOLDER "Libraries/Assimp")
+endif (WIN32)
 
 # ======== SkinTest ========
 add_executable(
 	skin_test
 	Source.cpp
+	VulkanInstance.cpp
 )
 target_include_directories(skin_test PRIVATE . dependencies ${Vulkan_INCLUDE_DIRS})
 target_link_libraries(skin_test PRIVATE Vulkan::Vulkan glfw glm)

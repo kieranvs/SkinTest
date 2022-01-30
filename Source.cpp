@@ -1,6 +1,8 @@
-#include <stdio.h>
+#include "VulkanInstance.h"
 
 int main()
 {
-	printf("Hello\n");
+    VulkanInstance instance;
+    instance.init();
+    instance.deinit();
 }
