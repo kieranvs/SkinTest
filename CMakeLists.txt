@@ -7,11 +7,17 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 
 find_package(Vulkan REQUIRED)
 
+set_property(GLOBAL PROPERTY USE_FOLDERS ON)
+
 # ======== GLFW ========
 set(GLFW_BUILD_DOCS OFF CACHE BOOL "" FORCE)
 set(GLFW_BUILD_TESTS OFF CACHE BOOL "" FORCE)
 set(GLFW_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
 add_subdirectory(dependencies/glfw)
+
+set_target_properties(glfw PROPERTIES FOLDER "Libraries/GLFW")
+set_target_properties(uninstall PROPERTIES FOLDER "Libraries/GLFW")
+set_target_properties(update_mappings PROPERTIES FOLDER "Libraries/GLFW")
 
 # ======== GLM ========
 add_library(
@@ -32,11 +38,17 @@ add_library(
 target_include_directories(imgui PRIVATE dependencies/imgui)
 target_include_directories(imgui INTERFACE dependencies/imgui dependencies)
 
+set_target_properties(imgui PROPERTIES FOLDER "Libraries")
+
 # ======== Assimp ========
 set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
 set(ASSIMP_BUILD_ASSIMP_TOOLS OFF CACHE BOOL "" FORCE)
 set(ASSIMP_BUILD_TESTS OFF CACHE BOOL "" FORCE)
 add_subdirectory(dependencies/assimp)
+
+set_target_properties(assimp PROPERTIES FOLDER "Libraries/Assimp")
+set_target_properties(UpdateAssimpLibsDebugSymbolsAndDLLs PROPERTIES FOLDER "Libraries/Assimp")
+set_target_properties(zlibstatic PROPERTIES FOLDER "Libraries/Assimp")
 
 # ======== SkinTest ========
 add_executable(
