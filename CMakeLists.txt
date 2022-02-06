@@ -56,6 +56,7 @@ endif (WIN32)
 add_executable(
 	skin_test
 	Source.cpp
+	VulkanInstance.h
 	VulkanInstance.cpp
 )
 target_include_directories(skin_test PRIVATE . dependencies ${Vulkan_INCLUDE_DIRS})

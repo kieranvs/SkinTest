@@ -14,6 +14,15 @@ struct DeviceManager
     VkQueue presentQueue;
 
     VkDevice logicalDevice;
+
+    VkSurfaceCapabilitiesKHR surface_capabilities;
+    std::vector<VkSurfaceFormatKHR> surface_formats;
+    std::vector<VkPresentModeKHR> surface_presentModes;
+
+    VkSampleCountFlagBits msaaSamples;
+
+    void init(VkInstance& instance, VkSurfaceKHR& surface);
+    void deinit();
 };
 
 struct Swapchain
@@ -33,9 +42,6 @@ struct VulkanInstance
 
     GLFWwindow* window = nullptr;
     VkSurfaceKHR surface;
-    VkSurfaceCapabilitiesKHR surface_capabilities; // maybe should be somewhere else
-    std::vector<VkSurfaceFormatKHR> surface_formats;
-    std::vector<VkPresentModeKHR> surface_presentModes;
 
     bool framebufferResized = false;
 
