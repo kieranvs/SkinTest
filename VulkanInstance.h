@@ -18,6 +18,7 @@ struct DeviceManager
     VkSurfaceCapabilitiesKHR surface_capabilities;
     std::vector<VkSurfaceFormatKHR> surface_formats;
     std::vector<VkPresentModeKHR> surface_presentModes;
+    VkFormat depth_format;
 
     VkSampleCountFlagBits msaaSamples;
 
@@ -38,6 +39,14 @@ struct Swapchain
     void deinit(const DeviceManager& device_manager);
 };
 
+struct Pipeline
+{
+    VkRenderPass render_pass;
+
+    void init(const DeviceManager& device_manager, VkFormat swapchain_format, VkFormat depth_format);
+    void deinit(const DeviceManager& device_manager);
+};
+
 struct VulkanInstance
 {
     VkInstance instance{};
@@ -50,6 +59,7 @@ struct VulkanInstance
 
     DeviceManager device_manager;
     Swapchain swapchain;
+    Pipeline pipeline;
 
     void init();
     void deinit();
