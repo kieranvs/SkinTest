@@ -33,6 +33,9 @@ struct Swapchain
     std::vector<VkImage> swapChainImages;
     std::vector<VkImageView> swapChainImageViews;
     VkFormat imageFormat;
+
+    void init(const DeviceManager& device_manager, GLFWwindow* window, VkSurfaceKHR surface);
+    void deinit(const DeviceManager& device_manager);
 };
 
 struct VulkanInstance

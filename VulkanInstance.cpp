@@ -7,6 +7,7 @@
 #include <iostream>
 #include <optional>
 #include <set>
+#include <algorithm>
 
 void log_warning(const char* message)
 {
@@ -110,6 +111,30 @@ void createDebugMessenger(VkInstance& instance, VkDebugUtilsMessengerEXT& debugM
         log_error("Failed to set up debug messenger");
 }
 
+VkImageView createImageView(const DeviceManager& device_manager, VkImage image, VkFormat format, VkImageAspectFlags aspectFlags, uint32_t mipMapLevels )
+{
+    VkImageViewCreateInfo createInfo{};
+    createInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+    createInfo.image = image;
+    createInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
+    createInfo.format = format;
+    createInfo.components.r = VK_COMPONENT_SWIZZLE_IDENTITY;
+    createInfo.components.g = VK_COMPONENT_SWIZZLE_IDENTITY;
+    createInfo.components.b = VK_COMPONENT_SWIZZLE_IDENTITY;
+    createInfo.components.a = VK_COMPONENT_SWIZZLE_IDENTITY;
+    createInfo.subresourceRange.aspectMask = aspectFlags;
+    createInfo.subresourceRange.baseMipLevel = 0;
+    createInfo.subresourceRange.levelCount = mipMapLevels;
+    createInfo.subresourceRange.baseArrayLayer = 0;
+    createInfo.subresourceRange.layerCount = 1;
+
+    VkImageView image_view;
+    if (vkCreateImageView(device_manager.logicalDevice, &createInfo, nullptr, &image_view) != VK_SUCCESS)
+        log_error("Failed to create swapchain image views!");
+
+    return image_view;
+}
+
 void VulkanInstance::init()
 {
     // Init the window
@@ -164,10 +189,13 @@ void VulkanInstance::init()
         log_error("Failed to create window surface");
 
     device_manager.init(instance, surface);
+    swapchain.init(device_manager, window, surface);
 }
 
 void VulkanInstance::deinit()
 {
+    swapchain.deinit(device_manager);
+
     if (enable_validation_layers)
     {
         auto destroyDebugUtilsMessengerFunc = (PFN_vkDestroyDebugUtilsMessengerEXT)vkGetInstanceProcAddr(instance, "vkDestroyDebugUtilsMessengerEXT");
@@ -379,4 +407,104 @@ void DeviceManager::init(VkInstance& instance, VkSurfaceKHR& surface)
 void DeviceManager::deinit()
 {
     vkDestroyDevice(logicalDevice, nullptr);
+}
+
+void Swapchain::init(const DeviceManager& device_manager, GLFWwindow* window, VkSurfaceKHR surface)
+{
+    // Select a surface format
+    if (device_manager.surface_formats.empty()) log_error("No surface formats");
+
+    VkSurfaceFormatKHR surfaceFormat = device_manager.surface_formats[0];
+    for (const auto& availableFormat : device_manager.surface_formats)
+    {
+        if (availableFormat.format == VK_FORMAT_B8G8R8A8_SRGB && availableFormat.colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR)
+            surfaceFormat = availableFormat;
+    }
+
+    // Select a present mode
+    if (device_manager.surface_presentModes.empty()) log_error("No present modes");
+
+    VkPresentModeKHR presentMode = VK_PRESENT_MODE_FIFO_KHR;
+    for (const auto& availableMode : device_manager.surface_presentModes)
+    {
+        if (availableMode == VK_PRESENT_MODE_MAILBOX_KHR)
+            presentMode = availableMode;
+    }
+
+    // Work out the extent
+    {
+        if (device_manager.surface_capabilities.currentExtent.width != UINT32_MAX)
+        {
+            extent = device_manager.surface_capabilities.currentExtent;
+        }
+        else
+        {
+            int framebuffer_width;
+            int framebuffer_height;
+            glfwGetFramebufferSize(window, &framebuffer_width, &framebuffer_height);
+
+            VkExtent2D actualExtent = { static_cast<uint32_t>(framebuffer_width), static_cast<uint32_t>(framebuffer_height) };
+            actualExtent.width = std::clamp(actualExtent.width, device_manager.surface_capabilities.minImageExtent.width, device_manager.surface_capabilities.maxImageExtent.width);
+            actualExtent.height = std::clamp(actualExtent.height, device_manager.surface_capabilities.minImageExtent.height, device_manager.surface_capabilities.maxImageExtent.height);
+            
+            extent = actualExtent;
+        }
+    }
+
+    uint32_t image_count = device_manager.surface_capabilities.minImageCount + 1;
+    if (device_manager.surface_capabilities.maxImageCount > 0)
+        image_count = std::min(image_count, device_manager.surface_capabilities.maxImageCount);
+
+    VkSwapchainCreateInfoKHR createInfo{};
+    createInfo.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
+    createInfo.surface = surface;
+    createInfo.minImageCount = image_count;
+    createInfo.imageFormat = surfaceFormat.format;
+    createInfo.imageColorSpace = surfaceFormat.colorSpace;
+    createInfo.imageExtent = extent;
+    createInfo.imageArrayLayers = 1;
+    createInfo.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+
+    uint32_t queue_family_indices[] = { device_manager.graphicsQueueFamily, device_manager.presentQueueFamily };
+    if (device_manager.graphicsQueueFamily != device_manager.presentQueueFamily)
+    {
+        createInfo.imageSharingMode = VK_SHARING_MODE_CONCURRENT;
+        createInfo.queueFamilyIndexCount = 2;
+        createInfo.pQueueFamilyIndices = queue_family_indices;
+    }
+    else
+    {
+        createInfo.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
+        createInfo.queueFamilyIndexCount = 0;
+        createInfo.pQueueFamilyIndices = nullptr;
+    }
+
+    createInfo.preTransform = device_manager.surface_capabilities.currentTransform;
+    createInfo.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
+    createInfo.presentMode = presentMode;
+    createInfo.clipped = VK_TRUE;
+    createInfo.oldSwapchain = VK_NULL_HANDLE;
+
+    if (vkCreateSwapchainKHR(device_manager.logicalDevice, &createInfo, nullptr, &handle) != VK_SUCCESS)
+        log_error("Failed to create swapchain!");
+
+    vkGetSwapchainImagesKHR(device_manager.logicalDevice, handle, &image_count, nullptr);
+    swapChainImages.resize(image_count);
+    vkGetSwapchainImagesKHR(device_manager.logicalDevice, handle, &image_count, swapChainImages.data());
+
+    swapChainImageViews.resize(image_count);
+    for (size_t i = 0; i < image_count; i++)
+    {
+        swapChainImageViews[i] = createImageView(device_manager, swapChainImages[i], surfaceFormat.format, VK_IMAGE_ASPECT_COLOR_BIT, 1);
+    }
+
+    imageFormat = surfaceFormat.format;
+}
+
+void Swapchain::deinit(const DeviceManager& device_manager)
+{
+    for (auto imageView : swapChainImageViews)
+        vkDestroyImageView(device_manager.logicalDevice, imageView, nullptr);
+
+    vkDestroySwapchainKHR(device_manager.logicalDevice, handle, nullptr);
 }
