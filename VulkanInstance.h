@@ -43,7 +43,12 @@ struct Pipeline
 {
     VkRenderPass render_pass;
 
-    void init(const DeviceManager& device_manager, VkFormat swapchain_format, VkFormat depth_format);
+    VkDescriptorSetLayout descriptor_set_layout;
+    
+    VkPipeline graphics_pipeline;
+    VkPipelineLayout pipeline_layout;
+
+    void init(const DeviceManager& device_manager, VkFormat swapchain_format, VkExtent2D swapchain_extent, VkFormat depth_format);
     void deinit(const DeviceManager& device_manager);
 };
 

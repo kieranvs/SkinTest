@@ -58,6 +58,9 @@ add_executable(
 	Source.cpp
 	VulkanInstance.h
 	VulkanInstance.cpp
+	Vertex.h
+	Shaders/shader.frag
+	Shaders/shader.vert
 )
 target_include_directories(skin_test PRIVATE . dependencies ${Vulkan_INCLUDE_DIRS})
 target_link_libraries(skin_test PRIVATE Vulkan::Vulkan glfw glm)
