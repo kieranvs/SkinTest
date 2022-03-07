@@ -71,7 +71,9 @@ struct Pipeline
     Image colour_image;
     Image depth_image;
 
-    void init(const DeviceManager& device_manager, VkFormat swapchain_format, VkExtent2D swapchain_extent, VkFormat depth_format);
+    std::vector<VkFramebuffer> framebuffers;
+
+    void init(const DeviceManager& device_manager, const Swapchain& swapchain);
     void deinit(const DeviceManager& device_manager);
 };
 

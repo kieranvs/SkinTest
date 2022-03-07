@@ -256,7 +256,7 @@ void VulkanInstance::init()
 
     device_manager.init(instance, surface);
     swapchain.init(device_manager, window, surface);
-    pipeline.init(device_manager, swapchain.imageFormat, swapchain.extent, device_manager.depth_format);
+    pipeline.init(device_manager, swapchain);
 }
 
 void VulkanInstance::deinit()
@@ -659,7 +659,7 @@ struct Shader
     }
 };
 
-void Pipeline::init(const DeviceManager& device_manager, VkFormat swapchain_format, VkExtent2D swapchain_extent, VkFormat depth_format)
+void Pipeline::init(const DeviceManager& device_manager, const Swapchain& swapchain)
 {
     // Render pass
     {
@@ -668,7 +668,7 @@ void Pipeline::init(const DeviceManager& device_manager, VkFormat swapchain_form
 
         // Colour
         VkAttachmentDescription& colourAttachment = attachment_descriptions[0];
-        colourAttachment.format = swapchain_format;
+        colourAttachment.format = swapchain.imageFormat;
         colourAttachment.samples = device_manager.msaaSamples;
         colourAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
         colourAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
@@ -683,7 +683,7 @@ void Pipeline::init(const DeviceManager& device_manager, VkFormat swapchain_form
 
         // Depth
         VkAttachmentDescription& depthAttachment = attachment_descriptions[1];
-        depthAttachment.format = depth_format;
+        depthAttachment.format = device_manager.depth_format;
         depthAttachment.samples = device_manager.msaaSamples;
         depthAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
         depthAttachment.storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
@@ -698,7 +698,7 @@ void Pipeline::init(const DeviceManager& device_manager, VkFormat swapchain_form
 
         // Colour resolve
         VkAttachmentDescription& resolveAttachment = attachment_descriptions[2];
-        resolveAttachment.format = swapchain_format;
+        resolveAttachment.format = swapchain.imageFormat;
         resolveAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
         resolveAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
         resolveAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
@@ -791,14 +791,14 @@ void Pipeline::init(const DeviceManager& device_manager, VkFormat swapchain_form
         VkViewport viewport{};
         viewport.x = 0.0f;
         viewport.y = 0.0f;
-        viewport.width = (float)swapchain_extent.width;
-        viewport.height = (float)swapchain_extent.height;
+        viewport.width = (float)swapchain.extent.width;
+        viewport.height = (float)swapchain.extent.height;
         viewport.minDepth = 0.0f;
         viewport.maxDepth = 1.0f;
 
         VkRect2D scissor{};
         scissor.offset = { 0,0 };
-        scissor.extent = swapchain_extent;
+        scissor.extent = swapchain.extent;
 
         VkPipelineViewportStateCreateInfo viewportState{};
         viewportState.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
@@ -907,28 +907,50 @@ void Pipeline::init(const DeviceManager& device_manager, VkFormat swapchain_form
         colour_image.createImage(
             device_manager.logicalDevice,
             device_manager.physicalDevice,
-            swapchain_extent.width,
-            swapchain_extent.height,
+            swapchain.extent.width,
+            swapchain.extent.height,
             1,
             device_manager.msaaSamples,
-            swapchain_format,
+            swapchain.imageFormat,
             VK_IMAGE_TILING_OPTIMAL,
             VK_IMAGE_USAGE_TRANSIENT_ATTACHMENT_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT
         );
-        colour_image.image_view = createImageView(device_manager, colour_image.image, swapchain_format, VK_IMAGE_ASPECT_COLOR_BIT, 1);
+        colour_image.image_view = createImageView(device_manager, colour_image.image, swapchain.imageFormat, VK_IMAGE_ASPECT_COLOR_BIT, 1);
         
         depth_image.createImage(
             device_manager.logicalDevice,
             device_manager.physicalDevice,
-            swapchain_extent.width,
-            swapchain_extent.height,
+            swapchain.extent.width,
+            swapchain.extent.height,
             1,
             device_manager.msaaSamples,
-            depth_format,
+            device_manager.depth_format,
             VK_IMAGE_TILING_OPTIMAL,
             VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT
         );
-        depth_image.image_view = createImageView(device_manager, depth_image.image, depth_format, VK_IMAGE_ASPECT_DEPTH_BIT, 1);
+        depth_image.image_view = createImageView(device_manager, depth_image.image, device_manager.depth_format, VK_IMAGE_ASPECT_DEPTH_BIT, 1);
+    }
+
+    // create framebuffers
+    {
+        framebuffers.resize(swapchain.swapChainImageViews.size());
+
+        for (size_t i{}; i < swapchain.swapChainImageViews.size(); ++i)
+        {
+            std::array<VkImageView, 3> attachments = { colour_image.image_view, depth_image.image_view, swapchain.swapChainImageViews[i] };
+
+            VkFramebufferCreateInfo framebufferInfo{};
+            framebufferInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
+            framebufferInfo.renderPass = render_pass;
+            framebufferInfo.attachmentCount = static_cast<uint32_t>(attachments.size());
+            framebufferInfo.pAttachments = attachments.data();
+            framebufferInfo.width = swapchain.extent.width;
+            framebufferInfo.height = swapchain.extent.height;
+            framebufferInfo.layers = 1;
+
+            if (vkCreateFramebuffer(device_manager.logicalDevice, &framebufferInfo, nullptr, &framebuffers[i]) != VK_SUCCESS)
+                log_error("Failed to create framebuffer");
+        }
     }
 }
 
@@ -936,6 +958,9 @@ void Pipeline::deinit(const DeviceManager& device_manager)
 {
     colour_image.deinit(device_manager.logicalDevice);
     depth_image.deinit(device_manager.logicalDevice);
+
+    for (auto& framebuffer : framebuffers)
+        vkDestroyFramebuffer(device_manager.logicalDevice, framebuffer, nullptr);
 
     vkDestroyPipeline(device_manager.logicalDevice, graphics_pipeline, nullptr);
     vkDestroyPipelineLayout(device_manager.logicalDevice, pipeline_layout, nullptr);
