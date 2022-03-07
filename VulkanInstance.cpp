@@ -138,6 +138,69 @@ VkImageView createImageView(const DeviceManager& device_manager, VkImage image, 
     return image_view;
 }
 
+uint32_t findMemoryType(VkPhysicalDevice physical_device, uint32_t typeFilter, VkMemoryPropertyFlags properties)
+{
+    VkPhysicalDeviceMemoryProperties memProperties;
+    vkGetPhysicalDeviceMemoryProperties(physical_device, &memProperties);
+    for (uint32_t i{}; i < memProperties.memoryTypeCount; ++i)
+    {
+        if ((typeFilter & (1 << i)) && (memProperties.memoryTypes[i].propertyFlags & properties) == properties)
+            return i;
+    }
+
+    log_error("failed to find suitable memory type!");
+}
+
+void Image::createImage(
+    VkDevice logical_device,
+    VkPhysicalDevice physical_device,
+    const uint32_t width,
+    const uint32_t height,
+    uint32_t mipMapLevels,
+    VkSampleCountFlagBits numSamples,
+    const VkFormat format,
+    const VkImageTiling tiling,
+    const VkImageUsageFlags usage)
+{
+    VkImageCreateInfo imageInfo{};
+    imageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
+    imageInfo.imageType = VK_IMAGE_TYPE_2D;
+    imageInfo.extent.width = width;
+    imageInfo.extent.height = height;
+    imageInfo.extent.depth = 1;
+    imageInfo.mipLevels = mipMapLevels;
+    imageInfo.arrayLayers = 1;
+    imageInfo.format = format;
+    imageInfo.tiling = tiling;
+    imageInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+    imageInfo.usage = usage;
+    imageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+    imageInfo.samples = numSamples;
+    imageInfo.flags = 0;
+
+    if (vkCreateImage(logical_device, &imageInfo, nullptr, &image) != VK_SUCCESS)
+        log_error("failed to create image!");
+
+    VkMemoryRequirements memRequirements;
+    vkGetImageMemoryRequirements(logical_device, image, &memRequirements);
+
+    VkMemoryAllocateInfo allocInfo{};
+    allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+    allocInfo.allocationSize = memRequirements.size;
+    allocInfo.memoryTypeIndex = findMemoryType(physical_device, memRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+
+    if (vkAllocateMemory(logical_device, &allocInfo, nullptr, &image_memory) != VK_SUCCESS)
+        log_error("failed to allocate image memory");
+
+    vkBindImageMemory(logical_device, image, image_memory, 0);
+}
+
+void Image::deinit(VkDevice logical_device) {
+    vkDestroyImageView(logical_device, image_view, nullptr);
+    vkDestroyImage(logical_device, image, nullptr);
+    vkFreeMemory(logical_device, image_memory, nullptr);
+}
+
 void VulkanInstance::init()
 {
     // Init the window
@@ -838,10 +901,42 @@ void Pipeline::init(const DeviceManager& device_manager, VkFormat swapchain_form
         vert_shader.deinit(device_manager.logicalDevice);
         frag_shader.deinit(device_manager.logicalDevice);
     }
+
+    // create colour and depth resources
+    {
+        colour_image.createImage(
+            device_manager.logicalDevice,
+            device_manager.physicalDevice,
+            swapchain_extent.width,
+            swapchain_extent.height,
+            1,
+            device_manager.msaaSamples,
+            swapchain_format,
+            VK_IMAGE_TILING_OPTIMAL,
+            VK_IMAGE_USAGE_TRANSIENT_ATTACHMENT_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT
+        );
+        colour_image.image_view = createImageView(device_manager, colour_image.image, swapchain_format, VK_IMAGE_ASPECT_COLOR_BIT, 1);
+        
+        depth_image.createImage(
+            device_manager.logicalDevice,
+            device_manager.physicalDevice,
+            swapchain_extent.width,
+            swapchain_extent.height,
+            1,
+            device_manager.msaaSamples,
+            depth_format,
+            VK_IMAGE_TILING_OPTIMAL,
+            VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT
+        );
+        depth_image.image_view = createImageView(device_manager, depth_image.image, depth_format, VK_IMAGE_ASPECT_DEPTH_BIT, 1);
+    }
 }
 
 void Pipeline::deinit(const DeviceManager& device_manager)
 {
+    colour_image.deinit(device_manager.logicalDevice);
+    depth_image.deinit(device_manager.logicalDevice);
+
     vkDestroyPipeline(device_manager.logicalDevice, graphics_pipeline, nullptr);
     vkDestroyPipelineLayout(device_manager.logicalDevice, pipeline_layout, nullptr);
     vkDestroyRenderPass(device_manager.logicalDevice, render_pass, nullptr);

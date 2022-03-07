@@ -39,6 +39,26 @@ struct Swapchain
     void deinit(const DeviceManager& device_manager);
 };
 
+struct Image
+{
+    VkImage image;
+    VkDeviceMemory image_memory;
+    VkImageView image_view;
+
+    void createImage(
+        VkDevice logical_device,
+        VkPhysicalDevice physical_device,
+        const uint32_t width,
+        const uint32_t height,
+        uint32_t mipMapLevels,
+        VkSampleCountFlagBits numSamples,
+        const VkFormat format,
+        const VkImageTiling tiling,
+        const VkImageUsageFlags usage);
+
+    void deinit(VkDevice logical_device);
+};
+
 struct Pipeline
 {
     VkRenderPass render_pass;
@@ -47,6 +67,9 @@ struct Pipeline
     
     VkPipeline graphics_pipeline;
     VkPipelineLayout pipeline_layout;
+
+    Image colour_image;
+    Image depth_image;
 
     void init(const DeviceManager& device_manager, VkFormat swapchain_format, VkExtent2D swapchain_extent, VkFormat depth_format);
     void deinit(const DeviceManager& device_manager);
