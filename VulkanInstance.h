@@ -3,6 +3,8 @@
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
 
+#include "Vertex.h"
+
 #include <vector>
 
 struct DeviceManager
@@ -12,6 +14,8 @@ struct DeviceManager
     uint32_t presentQueueFamily;
     VkQueue graphicsQueue;
     VkQueue presentQueue;
+
+    VkCommandPool command_pool;
 
     VkDevice logicalDevice;
 
@@ -77,6 +81,32 @@ struct Pipeline
     void deinit(const DeviceManager& device_manager);
 };
 
+struct SingleTimeCommandBuffer
+{
+    VkCommandBuffer command_buffer;
+
+    void begin(VkDevice logical_device, VkCommandPool command_pool);
+    void end(VkDevice logical_device, VkQueue graphics_queue, VkCommandPool command_pool);
+};
+
+struct Buffer
+{
+    VkBuffer buffer;
+    VkDeviceMemory buffer_memory;
+    VkDeviceSize buffer_size;
+
+    void init(VkPhysicalDevice physical_device, VkDevice logical_device, const VkDeviceSize size, const VkBufferUsageFlags usage, const VkMemoryPropertyFlags properties);
+    void deinit(VkDevice logical_device);
+
+    template<typename T>
+    void uploadData(VkDevice logical_device, const std::vector<T>& data) {
+        void* ptr;
+        vkMapMemory(logical_device, buffer_memory, 0, buffer_size, 0, &ptr);
+        memcpy(ptr, data.data(), (size_t)buffer_size);
+        vkUnmapMemory(logical_device, buffer_memory);
+    }
+};
+
 struct VulkanInstance
 {
     VkInstance instance{};
@@ -91,7 +121,12 @@ struct VulkanInstance
     Swapchain swapchain;
     Pipeline pipeline;
 
+    Buffer vertex_buffer;
+    Buffer index_buffer;
+
     void init();
     void deinit();
+
+    void createBuffers(const std::vector<Vertex>& vertices, const std::vector<uint32_t>& indices);
 };
 
