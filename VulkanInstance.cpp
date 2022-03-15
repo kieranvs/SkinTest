@@ -879,14 +879,15 @@ void Pipeline::init(const DeviceManager& device_manager, const Swapchain& swapch
         uboLayoutBinding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
         uboLayoutBinding.pImmutableSamplers = nullptr;
 
-        VkDescriptorSetLayoutBinding samplerLayoutBinding{};
-        samplerLayoutBinding.binding = 1;
-        samplerLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-        samplerLayoutBinding.descriptorCount = 1;
-        samplerLayoutBinding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
-        samplerLayoutBinding.pImmutableSamplers = nullptr;
+        // VkDescriptorSetLayoutBinding samplerLayoutBinding{};
+        // samplerLayoutBinding.binding = 1;
+        // samplerLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+        // samplerLayoutBinding.descriptorCount = 1;
+        // samplerLayoutBinding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+        // samplerLayoutBinding.pImmutableSamplers = nullptr;
 
-        std::array<VkDescriptorSetLayoutBinding, 2> bindings = { uboLayoutBinding, samplerLayoutBinding };
+        // std::array<VkDescriptorSetLayoutBinding, 2> bindings = { uboLayoutBinding, samplerLayoutBinding };
+        std::array<VkDescriptorSetLayoutBinding, 1> bindings = { uboLayoutBinding };
         VkDescriptorSetLayoutCreateInfo layoutInfo{};
         layoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
         layoutInfo.bindingCount = static_cast<uint32_t>(bindings.size());
@@ -894,6 +895,83 @@ void Pipeline::init(const DeviceManager& device_manager, const Swapchain& swapch
 
         if (vkCreateDescriptorSetLayout(device_manager.logicalDevice, &layoutInfo, nullptr, &descriptor_set_layout) != VK_SUCCESS)
             throw std::runtime_error("failed to create descriptor set layout");
+    }
+
+    // create descriptor pool
+    {
+        std::array<VkDescriptorPoolSize, 1> poolSizes{};
+        poolSizes[0].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+        poolSizes[0].descriptorCount = static_cast<uint32_t>(swapchain.swapChainImages.size());
+        // poolSizes[1].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+        // poolSizes[1].descriptorCount = static_cast<uint32_t>(swapchain.swapChainImages.size());
+
+        VkDescriptorPoolCreateInfo poolInfo{};
+        poolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+        poolInfo.poolSizeCount = static_cast<uint32_t>(poolSizes.size());
+        poolInfo.pPoolSizes = poolSizes.data();
+        poolInfo.maxSets = static_cast<uint32_t>(swapchain.swapChainImages.size());
+
+        if (vkCreateDescriptorPool(device_manager.logicalDevice, &poolInfo, nullptr, &descriptor_pool) != VK_SUCCESS)
+            log_error("failed to create descriptor pool");
+    }
+
+    // Create uniform buffers
+    {
+        VkDeviceSize bufferSize = sizeof(UniformData);
+
+        uniform_buffers.resize(swapchain.swapChainImages.size());
+
+        for (auto& buffer : uniform_buffers)
+        {
+            buffer.init(device_manager.physicalDevice, device_manager.logicalDevice, bufferSize, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+        }
+    }
+
+    // create descriptor sets
+    {
+        std::vector<VkDescriptorSetLayout> layouts(swapchain.swapChainImages.size(), descriptor_set_layout);
+        VkDescriptorSetAllocateInfo allocInfo{};
+        allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+        allocInfo.descriptorPool = descriptor_pool;
+        allocInfo.descriptorSetCount = static_cast<uint32_t>(swapchain.swapChainImages.size());
+        allocInfo.pSetLayouts = layouts.data();
+
+        descriptor_sets.resize(swapchain.swapChainImages.size());
+        if (vkAllocateDescriptorSets(device_manager.logicalDevice, &allocInfo, descriptor_sets.data()) != VK_SUCCESS)
+            log_error("failed to allocate descriptor sets!");
+
+        for (size_t i = 0; i < swapchain.swapChainImages.size(); ++i)
+        {
+            VkDescriptorBufferInfo bufferInfo{};
+            bufferInfo.buffer = uniform_buffers[i].buffer;
+            bufferInfo.offset = 0;
+            bufferInfo.range = sizeof(UniformData);
+
+            // VkDescriptorImageInfo imageInfo{};
+            // imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+            // imageInfo.imageView = texture.image_view;
+            // imageInfo.sampler = texture.sampler;
+
+            std::array<VkWriteDescriptorSet, 1> descriptorWrites{};
+
+            descriptorWrites[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+            descriptorWrites[0].dstSet = descriptor_sets[i];
+            descriptorWrites[0].dstBinding = 0;
+            descriptorWrites[0].dstArrayElement = 0;
+            descriptorWrites[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+            descriptorWrites[0].descriptorCount = 1;
+            descriptorWrites[0].pBufferInfo = &bufferInfo;
+
+            // descriptorWrites[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+            // descriptorWrites[1].dstSet = descriptor_sets[i];
+            // descriptorWrites[1].dstBinding = 1;
+            // descriptorWrites[1].dstArrayElement = 0;
+            // descriptorWrites[1].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+            // descriptorWrites[1].descriptorCount = 1;
+            // descriptorWrites[1].pImageInfo = &imageInfo;
+
+            vkUpdateDescriptorSets(device_manager.logicalDevice, static_cast<uint32_t>(descriptorWrites.size()), descriptorWrites.data(), 0, nullptr);
+        }
     }
 
     // create graphics pipeline 
@@ -1087,6 +1165,9 @@ void Pipeline::init(const DeviceManager& device_manager, const Swapchain& swapch
 
 void Pipeline::deinit(const DeviceManager& device_manager)
 {
+    for (auto& buffer : uniform_buffers)
+        buffer.deinit(device_manager.logicalDevice);
+
     colour_image.deinit(device_manager.logicalDevice);
     depth_image.deinit(device_manager.logicalDevice);
 
@@ -1098,4 +1179,5 @@ void Pipeline::deinit(const DeviceManager& device_manager)
     vkDestroyRenderPass(device_manager.logicalDevice, render_pass, nullptr);
 
     vkDestroyDescriptorSetLayout(device_manager.logicalDevice, descriptor_set_layout, nullptr);
+    vkDestroyDescriptorPool(device_manager.logicalDevice, descriptor_pool, nullptr);
 }

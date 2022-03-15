@@ -63,17 +63,31 @@ struct Image
     void deinit(VkDevice logical_device);
 };
 
+struct Buffer
+{
+    VkBuffer buffer;
+    VkDeviceMemory buffer_memory;
+    VkDeviceSize buffer_size;
+
+    void init(VkPhysicalDevice physical_device, VkDevice logical_device, const VkDeviceSize size, const VkBufferUsageFlags usage, const VkMemoryPropertyFlags properties);
+    void deinit(VkDevice logical_device);
+};
+
 struct Pipeline
 {
     VkRenderPass render_pass;
 
     VkDescriptorSetLayout descriptor_set_layout;
+    VkDescriptorPool descriptor_pool;
+    std::vector<VkDescriptorSet> descriptor_sets;
     
     VkPipeline graphics_pipeline;
     VkPipelineLayout pipeline_layout;
 
     Image colour_image;
     Image depth_image;
+
+    std::vector<Buffer> uniform_buffers;
 
     std::vector<VkFramebuffer> framebuffers;
 
@@ -89,14 +103,11 @@ struct SingleTimeCommandBuffer
     void end(VkDevice logical_device, VkQueue graphics_queue, VkCommandPool command_pool);
 };
 
-struct Buffer
+struct UniformData
 {
-    VkBuffer buffer;
-    VkDeviceMemory buffer_memory;
-    VkDeviceSize buffer_size;
-
-    void init(VkPhysicalDevice physical_device, VkDevice logical_device, const VkDeviceSize size, const VkBufferUsageFlags usage, const VkMemoryPropertyFlags properties);
-    void deinit(VkDevice logical_device);
+    alignas(16) glm::mat4 model;
+    alignas(16) glm::mat4 view;
+    alignas(16) glm::mat4 proj;
 };
 
 struct VulkanInstance
