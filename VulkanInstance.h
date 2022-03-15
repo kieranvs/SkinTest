@@ -68,6 +68,7 @@ struct Buffer
     VkBuffer buffer;
     VkDeviceMemory buffer_memory;
     VkDeviceSize buffer_size;
+    size_t num_elements;
 
     void init(VkPhysicalDevice physical_device, VkDevice logical_device, const VkDeviceSize size, const VkBufferUsageFlags usage, const VkMemoryPropertyFlags properties);
     void deinit(VkDevice logical_device);
@@ -127,9 +128,13 @@ struct VulkanInstance
     Buffer vertex_buffer;
     Buffer index_buffer;
 
+
+    std::vector<VkCommandBuffer> command_buffers;
+
     void init();
     void deinit();
 
     void createBuffers(const std::vector<Vertex>& vertices, const std::vector<uint32_t>& indices);
+    void createCommandBuffers();
 };
 

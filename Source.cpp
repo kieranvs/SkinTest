@@ -16,6 +16,7 @@ int main()
     verts[2].colour = { 0.0, 0.0, 1.0 };
 
     instance.createBuffers(verts, indices);
+    instance.createCommandBuffers();
 
     instance.deinit();
 }
