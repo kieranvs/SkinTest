@@ -39,6 +39,7 @@ const uint32_t window_height = 600;
 const bool enable_validation_layers = true;
 const std::vector<const char*> validation_layers = { "VK_LAYER_KHRONOS_validation" };
 const std::vector<const char*> device_extensions = { VK_KHR_SWAPCHAIN_EXTENSION_NAME };
+const int MAX_FRAMES_IN_FLIGHT = 2;
 
 std::vector<const char*> getRequiredExtensions()
 {
@@ -256,6 +257,34 @@ void VulkanInstance::init()
     device_manager.init(instance, surface);
     swapchain.init(device_manager, window, surface);
     pipeline.init(device_manager, swapchain);
+
+    // Create sync objects
+    {
+        image_available_semaphores.resize(MAX_FRAMES_IN_FLIGHT);
+        render_finished_semaphores.resize(MAX_FRAMES_IN_FLIGHT);
+        in_flight_fences.resize(MAX_FRAMES_IN_FLIGHT);
+        images_in_flight.resize(swapchain.swapChainImages.size(), VK_NULL_HANDLE);
+
+        // similar to fences but can only be used within or across queues
+        VkSemaphoreCreateInfo semaphoreInfo{};
+        semaphoreInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
+
+        VkFenceCreateInfo fenceInfo{};
+        fenceInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
+        fenceInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT;
+
+        for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i)
+        {
+            if (vkCreateSemaphore(device_manager.logicalDevice, &semaphoreInfo, nullptr, &image_available_semaphores[i]) != VK_SUCCESS)
+                log_error("failed to create synchronisation objects for a frame!");
+
+            if (vkCreateSemaphore(device_manager.logicalDevice, &semaphoreInfo, nullptr, &render_finished_semaphores[i]) != VK_SUCCESS)
+                log_error("failed to create synchronisation objects for a frame!");
+
+            if (vkCreateFence(device_manager.logicalDevice, &fenceInfo, nullptr, &in_flight_fences[i]) != VK_SUCCESS)
+                log_error("failed to create synchronisation objects for a frame!");
+        }
+    }
 }
 
 void VulkanInstance::deinit()
@@ -267,6 +296,13 @@ void VulkanInstance::deinit()
 
     vertex_buffer.deinit(device_manager.logicalDevice);
     index_buffer.deinit(device_manager.logicalDevice);
+
+    for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
+    {
+        vkDestroySemaphore(device_manager.logicalDevice, render_finished_semaphores[i], nullptr);
+        vkDestroySemaphore(device_manager.logicalDevice, image_available_semaphores[i], nullptr);
+        vkDestroyFence(device_manager.logicalDevice, in_flight_fences[i], nullptr);
+    }
 
     if (enable_validation_layers)
     {

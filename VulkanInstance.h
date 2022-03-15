@@ -128,8 +128,12 @@ struct VulkanInstance
     Buffer vertex_buffer;
     Buffer index_buffer;
 
-
     std::vector<VkCommandBuffer> command_buffers;
+
+    std::vector<VkSemaphore> image_available_semaphores; // Per frame in flight: swap chain image is available to start being used
+    std::vector<VkSemaphore> render_finished_semaphores; // Per frame in flight: signalled when command buffers have finished execution
+    std::vector<VkFence> in_flight_fences; // Per frame in flight
+    std::vector<VkFence> images_in_flight; // Per swapchain image
 
     void init();
     void deinit();
