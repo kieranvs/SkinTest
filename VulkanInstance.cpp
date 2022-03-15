@@ -366,13 +366,22 @@ void copyBuffer(VkDevice logical_device, VkCommandPool command_pool, VkQueue gra
 }
 
 template<typename T>
+void uploadData(Buffer& buffer, VkDevice logical_device, const std::vector<T>& data)
+{
+    void* ptr;
+    vkMapMemory(logical_device, buffer.buffer_memory, 0, buffer.buffer_size, 0, &ptr);
+    memcpy(ptr, data.data(), (size_t)buffer.buffer_size);
+    vkUnmapMemory(logical_device, buffer.buffer_memory);
+}
+
+template<typename T>
 void uploadBufferData(const DeviceManager& device_manager, Buffer& buffer, const std::vector<T>& data, VkBufferUsageFlagBits usage)
 {
     const VkDeviceSize bufferSize = sizeof(data[0]) * data.size();
 
     Buffer stagingBuffer;
     stagingBuffer.init(device_manager.physicalDevice, device_manager.logicalDevice, bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
-    stagingBuffer.uploadData(device_manager.logicalDevice, data);
+    uploadData(stagingBuffer, device_manager.logicalDevice, data);
 
     buffer.init(device_manager.physicalDevice, device_manager.logicalDevice, bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | usage, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
 

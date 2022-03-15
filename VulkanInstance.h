@@ -97,14 +97,6 @@ struct Buffer
 
     void init(VkPhysicalDevice physical_device, VkDevice logical_device, const VkDeviceSize size, const VkBufferUsageFlags usage, const VkMemoryPropertyFlags properties);
     void deinit(VkDevice logical_device);
-
-    template<typename T>
-    void uploadData(VkDevice logical_device, const std::vector<T>& data) {
-        void* ptr;
-        vkMapMemory(logical_device, buffer_memory, 0, buffer_size, 0, &ptr);
-        memcpy(ptr, data.data(), (size_t)buffer_size);
-        vkUnmapMemory(logical_device, buffer_memory);
-    }
 };
 
 struct VulkanInstance
