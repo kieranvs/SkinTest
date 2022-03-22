@@ -437,6 +437,8 @@ void VulkanInstance::createBuffers(const std::vector<Vertex>& vertices, const st
 
     // create index buffer
     uploadBufferData(device_manager, index_buffer, indices, VK_BUFFER_USAGE_INDEX_BUFFER_BIT);
+
+    createCommandBuffers();
 }
 
 void VulkanInstance::createCommandBuffers()
@@ -511,8 +513,8 @@ void VulkanInstance::mainLoop()
 
             if (result == VK_ERROR_OUT_OF_DATE_KHR)
             {
-                // recreate swapchain
-                log_error("can't resize");
+                recreateSwapChain();
+                return;
             }
             else if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR)
                 log_error("failed to acquire swap chain image!");
@@ -576,8 +578,7 @@ void VulkanInstance::mainLoop()
             if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR || framebufferResized)
             {
                 framebufferResized = false;
-                // recreate swapchain
-                log_error("can't resize");
+                recreateSwapChain();
             }
             else if (result != VK_SUCCESS)
                 log_error("failed to present swap chain image!");
@@ -590,19 +591,56 @@ void VulkanInstance::mainLoop()
     vkDeviceWaitIdle(device_manager.logicalDevice);
 }
 
+
+
+struct SwapChainSupport
+{
+    VkSurfaceCapabilitiesKHR capabilities;
+    std::vector<VkSurfaceFormatKHR> formats;
+    std::vector<VkPresentModeKHR> presentModes;
+
+    bool suitable = false;
+};
+
 struct CandidateDeviceSettings
 {
     std::optional<uint32_t> graphicsFamily;
     std::optional<uint32_t> presentFamily;
 
-    VkSurfaceCapabilitiesKHR capabilities;
-    std::vector<VkSurfaceFormatKHR> formats;
-    std::vector<VkPresentModeKHR> presentModes;
+    SwapChainSupport swapchain_support;
 
     VkFormat depth_format = VK_FORMAT_UNDEFINED;
 
     bool suitable = false;
 };
+
+SwapChainSupport getSwapchainSupport(const VkPhysicalDevice& device, const VkSurfaceKHR& surface)
+{
+    // check swap chain support
+    SwapChainSupport swapchain_support{};
+
+    vkGetPhysicalDeviceSurfaceCapabilitiesKHR(device, surface, &swapchain_support.capabilities);
+
+    uint32_t formatCount;
+    vkGetPhysicalDeviceSurfaceFormatsKHR(device, surface, &formatCount, {});
+    if (formatCount == 0)
+        return swapchain_support;
+
+    swapchain_support.formats.resize(formatCount);
+    vkGetPhysicalDeviceSurfaceFormatsKHR(device, surface, &formatCount, swapchain_support.formats.data());
+
+    uint32_t presentModeCount;
+    vkGetPhysicalDeviceSurfacePresentModesKHR(device, surface, &presentModeCount, {});
+    if (presentModeCount == 0)
+        return swapchain_support;
+
+    swapchain_support.presentModes.resize(presentModeCount);
+    vkGetPhysicalDeviceSurfacePresentModesKHR(device, surface, &presentModeCount, swapchain_support.presentModes.data());
+
+    swapchain_support.suitable = true;
+
+    return swapchain_support;
+}
 
 CandidateDeviceSettings isDeviceSuitable(const VkPhysicalDevice& device, const VkSurfaceKHR& surface)
 {
@@ -655,24 +693,10 @@ CandidateDeviceSettings isDeviceSuitable(const VkPhysicalDevice& device, const V
     }
 
     {
-        // check swap chain support
-        vkGetPhysicalDeviceSurfaceCapabilitiesKHR(device, surface, &deviceSettings.capabilities);
-
-        uint32_t formatCount;
-        vkGetPhysicalDeviceSurfaceFormatsKHR(device, surface, &formatCount, {});
-        if (formatCount == 0)
+        // check swapchain support
+        deviceSettings.swapchain_support = getSwapchainSupport(device, surface);
+        if (!deviceSettings.swapchain_support.suitable)
             return deviceSettings;
-
-        deviceSettings.formats.resize(formatCount);
-        vkGetPhysicalDeviceSurfaceFormatsKHR(device, surface, &formatCount, deviceSettings.formats.data());
-
-        uint32_t presentModeCount;
-        vkGetPhysicalDeviceSurfacePresentModesKHR(device, surface, &presentModeCount, {});
-        if (presentModeCount == 0)
-            return deviceSettings;
-         
-        deviceSettings.presentModes.resize(presentModeCount);
-        vkGetPhysicalDeviceSurfacePresentModesKHR(device, surface, &presentModeCount, deviceSettings.presentModes.data());
     }
 
     {
@@ -703,6 +727,34 @@ CandidateDeviceSettings isDeviceSuitable(const VkPhysicalDevice& device, const V
     return deviceSettings;
 };
 
+void VulkanInstance::recreateSwapChain()
+{
+    int width{}, height{};
+    glfwGetFramebufferSize(window, &width, &height);
+    while (width == 0 || height == 0)
+    {
+        glfwGetFramebufferSize(window, &width, &height);
+        glfwWaitEvents();
+    }
+
+    vkDeviceWaitIdle(device_manager.logicalDevice);
+
+    vkFreeCommandBuffers(device_manager.logicalDevice, device_manager.command_pool, static_cast<uint32_t>(command_buffers.size()), command_buffers.data());
+
+    pipeline.deinit(device_manager);
+    swapchain.deinit(device_manager);
+
+    auto swapchain_support = getSwapchainSupport(device_manager.physicalDevice, surface);
+    device_manager.surface_capabilities = swapchain_support.capabilities;
+    device_manager.surface_formats = swapchain_support.formats;
+    device_manager.surface_presentModes = swapchain_support.presentModes;
+
+    swapchain.init(device_manager, window, surface);
+    pipeline.init(device_manager, swapchain);
+
+    createCommandBuffers();
+}
+
 void DeviceManager::init(VkInstance& instance, VkSurfaceKHR& surface)
 {
     {
@@ -726,9 +778,9 @@ void DeviceManager::init(VkInstance& instance, VkSurfaceKHR& surface)
                 graphicsQueueFamily = deviceSettings.graphicsFamily.value();
                 presentQueueFamily = deviceSettings.presentFamily.value();
 
-                surface_capabilities = deviceSettings.capabilities;
-                surface_formats = deviceSettings.formats;
-                surface_presentModes = deviceSettings.presentModes;
+                surface_capabilities = deviceSettings.swapchain_support.capabilities;
+                surface_formats = deviceSettings.swapchain_support.formats;
+                surface_presentModes = deviceSettings.swapchain_support.presentModes;
                 depth_format = deviceSettings.depth_format;
                 
                 msaaSamples = [&device]() {

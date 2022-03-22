@@ -142,5 +142,8 @@ struct VulkanInstance
     void createCommandBuffers();
 
     void mainLoop();
+
+private:
+    void recreateSwapChain();
 };
 
