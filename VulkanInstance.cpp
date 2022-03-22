@@ -1,5 +1,7 @@
 #include "VulkanInstance.h"
 
+#include "glm/gtc/matrix_transform.hpp"
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <cstring>
@@ -262,8 +264,8 @@ void VulkanInstance::init()
     {
         image_available_semaphores.resize(MAX_FRAMES_IN_FLIGHT);
         render_finished_semaphores.resize(MAX_FRAMES_IN_FLIGHT);
-        in_flight_fences.resize(MAX_FRAMES_IN_FLIGHT);
-        images_in_flight.resize(swapchain.swapChainImages.size(), VK_NULL_HANDLE);
+        frame_finished_fences.resize(MAX_FRAMES_IN_FLIGHT);
+        image_to_frame_fences.resize(swapchain.swapChainImages.size(), VK_NULL_HANDLE);
 
         // similar to fences but can only be used within or across queues
         VkSemaphoreCreateInfo semaphoreInfo{};
@@ -281,7 +283,7 @@ void VulkanInstance::init()
             if (vkCreateSemaphore(device_manager.logicalDevice, &semaphoreInfo, nullptr, &render_finished_semaphores[i]) != VK_SUCCESS)
                 log_error("failed to create synchronisation objects for a frame!");
 
-            if (vkCreateFence(device_manager.logicalDevice, &fenceInfo, nullptr, &in_flight_fences[i]) != VK_SUCCESS)
+            if (vkCreateFence(device_manager.logicalDevice, &fenceInfo, nullptr, &frame_finished_fences[i]) != VK_SUCCESS)
                 log_error("failed to create synchronisation objects for a frame!");
         }
     }
@@ -301,7 +303,7 @@ void VulkanInstance::deinit()
     {
         vkDestroySemaphore(device_manager.logicalDevice, render_finished_semaphores[i], nullptr);
         vkDestroySemaphore(device_manager.logicalDevice, image_available_semaphores[i], nullptr);
-        vkDestroyFence(device_manager.logicalDevice, in_flight_fences[i], nullptr);
+        vkDestroyFence(device_manager.logicalDevice, frame_finished_fences[i], nullptr);
     }
 
     if (enable_validation_layers)
@@ -403,12 +405,11 @@ void copyBuffer(VkDevice logical_device, VkCommandPool command_pool, VkQueue gra
     command_buffer.end(logical_device, graphics_queue, command_pool);
 }
 
-template<typename T>
-void uploadData(Buffer& buffer, VkDevice logical_device, const std::vector<T>& data)
+void uploadData(Buffer& buffer, VkDevice logical_device, const void* data)
 {
     void* ptr;
     vkMapMemory(logical_device, buffer.buffer_memory, 0, buffer.buffer_size, 0, &ptr);
-    memcpy(ptr, data.data(), (size_t)buffer.buffer_size);
+    memcpy(ptr, data, (size_t)buffer.buffer_size);
     vkUnmapMemory(logical_device, buffer.buffer_memory);
 }
 
@@ -419,7 +420,7 @@ void uploadBufferData(const DeviceManager& device_manager, Buffer& buffer, const
 
     Buffer stagingBuffer;
     stagingBuffer.init(device_manager.physicalDevice, device_manager.logicalDevice, bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
-    uploadData(stagingBuffer, device_manager.logicalDevice, data);
+    uploadData(stagingBuffer, device_manager.logicalDevice, data.data());
 
     buffer.init(device_manager.physicalDevice, device_manager.logicalDevice, bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | usage, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
     buffer.num_elements = data.size();
@@ -492,6 +493,101 @@ void VulkanInstance::createCommandBuffers()
         if (vkEndCommandBuffer(command_buffers[i]) != VK_SUCCESS)
             log_error("failed to record command buffer!");
     }
+}
+
+void VulkanInstance::mainLoop()
+{
+    size_t currentFrame = 0;
+    while (!glfwWindowShouldClose(window))
+    {
+        glfwPollEvents();
+        
+        // image synchronisation
+        uint32_t image_index;
+        {
+            vkWaitForFences(device_manager.logicalDevice, 1, &frame_finished_fences[currentFrame], VK_TRUE, UINT64_MAX);
+
+            VkResult result = vkAcquireNextImageKHR(device_manager.logicalDevice, swapchain.handle, UINT64_MAX, image_available_semaphores[currentFrame], VK_NULL_HANDLE, &image_index);
+
+            if (result == VK_ERROR_OUT_OF_DATE_KHR)
+            {
+                // recreate swapchain
+                log_error("can't resize");
+            }
+            else if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR)
+                log_error("failed to acquire swap chain image!");
+
+            // wait if a frame in flight is using this image
+            if (image_to_frame_fences[image_index] != VK_NULL_HANDLE)
+                vkWaitForFences(device_manager.logicalDevice, 1, &image_to_frame_fences[image_index], VK_TRUE, UINT64_MAX);
+            image_to_frame_fences[image_index] = frame_finished_fences[currentFrame];
+        }
+
+        // update uniform buffer
+        {
+            UniformData uniform_data{};
+            uniform_data.model = glm::mat4(1.0f);
+            uniform_data.view = glm::lookAt(glm::vec3(2.0f, 2.0f, 2.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+            uniform_data.proj = glm::perspective(glm::radians(45.0f), swapchain.extent.width / (float)swapchain.extent.height, 0.1f, 10.0f);
+            uniform_data.proj[1][1] *= -1; // correction of inverted Y in OpenGL
+
+            uploadData(pipeline.uniform_buffers[image_index], device_manager.logicalDevice, &uniform_data);
+        }
+
+        // submit command buffer
+        {
+            VkSubmitInfo submitInfo{};
+            submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+
+            VkSemaphore waitSemaphores[] = { image_available_semaphores[currentFrame] };
+            VkPipelineStageFlags waitStages[] = { VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
+            submitInfo.waitSemaphoreCount = 1;
+            submitInfo.pWaitSemaphores = waitSemaphores;
+            submitInfo.pWaitDstStageMask = waitStages;
+            submitInfo.commandBufferCount = 1;
+            submitInfo.pCommandBuffers = &command_buffers[image_index];
+
+            VkSemaphore signalSemaphores[] = { render_finished_semaphores[currentFrame] };
+            submitInfo.signalSemaphoreCount = 1;
+            submitInfo.pSignalSemaphores = signalSemaphores;
+
+            vkResetFences(device_manager.logicalDevice, 1, &frame_finished_fences[currentFrame]);
+            if (vkQueueSubmit(device_manager.graphicsQueue, 1, &submitInfo, frame_finished_fences[currentFrame]) != VK_SUCCESS)
+                log_error("failed to submit draw command buffers!");
+        }
+
+        // present the image
+        {
+            VkSemaphore waitSemaphores[] = { render_finished_semaphores[currentFrame] };
+
+            VkPresentInfoKHR presentInfo{};
+            presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
+            presentInfo.waitSemaphoreCount = 1;
+            presentInfo.pWaitSemaphores = waitSemaphores;
+
+            VkSwapchainKHR swapChains[] = { swapchain.handle };
+            presentInfo.swapchainCount = 1;
+            presentInfo.pSwapchains = swapChains;
+            presentInfo.pImageIndices = &image_index;
+            presentInfo.pResults = nullptr;
+
+            VkResult result = vkQueuePresentKHR(device_manager.presentQueue, &presentInfo);
+
+            if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR || framebufferResized)
+            {
+                framebufferResized = false;
+                // recreate swapchain
+                log_error("can't resize");
+            }
+            else if (result != VK_SUCCESS)
+                log_error("failed to present swap chain image!");
+
+            vkQueueWaitIdle(device_manager.presentQueue);
+        }
+        currentFrame = (currentFrame + 1) % MAX_FRAMES_IN_FLIGHT;
+    }
+
+    vkDeviceWaitIdle(device_manager.logicalDevice);
 }
 
 struct CandidateDeviceSettings

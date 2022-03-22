@@ -18,5 +18,7 @@ int main()
     instance.createBuffers(verts, indices);
     instance.createCommandBuffers();
 
+    instance.mainLoop();
+
     instance.deinit();
 }
