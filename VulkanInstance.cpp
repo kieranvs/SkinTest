@@ -1,4 +1,5 @@
 #include "VulkanInstance.h"
+#include "VulkanWrapper/Log.h"
 
 #include "glm/gtc/matrix_transform.hpp"
 
@@ -12,17 +13,6 @@
 #include <algorithm>
 #include <array>
 #include <fstream>
-
-void log_warning(const char* message)
-{
-    printf(message);
-}
-
-void log_error(const char* message)
-{
-    printf(message);
-    exit(-1);
-}
 
 void framebufferResizeCallback(GLFWwindow* window, int width, int height)
 {
@@ -114,93 +104,6 @@ void createDebugMessenger(VkInstance& instance, VkDebugUtilsMessengerEXT& debugM
 
     if (createDebugUtilsMessengerFunc(instance, &debugMessengerCreateInfo, nullptr, &debugMessenger) != VK_SUCCESS)
         log_error("Failed to set up debug messenger");
-}
-
-VkImageView createImageView(const DeviceManager& device_manager, VkImage image, VkFormat format, VkImageAspectFlags aspectFlags, uint32_t mipMapLevels )
-{
-    VkImageViewCreateInfo createInfo{};
-    createInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
-    createInfo.image = image;
-    createInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
-    createInfo.format = format;
-    createInfo.components.r = VK_COMPONENT_SWIZZLE_IDENTITY;
-    createInfo.components.g = VK_COMPONENT_SWIZZLE_IDENTITY;
-    createInfo.components.b = VK_COMPONENT_SWIZZLE_IDENTITY;
-    createInfo.components.a = VK_COMPONENT_SWIZZLE_IDENTITY;
-    createInfo.subresourceRange.aspectMask = aspectFlags;
-    createInfo.subresourceRange.baseMipLevel = 0;
-    createInfo.subresourceRange.levelCount = mipMapLevels;
-    createInfo.subresourceRange.baseArrayLayer = 0;
-    createInfo.subresourceRange.layerCount = 1;
-
-    VkImageView image_view;
-    if (vkCreateImageView(device_manager.logicalDevice, &createInfo, nullptr, &image_view) != VK_SUCCESS)
-        log_error("Failed to create swapchain image views!");
-
-    return image_view;
-}
-
-uint32_t findMemoryType(VkPhysicalDevice physical_device, uint32_t typeFilter, VkMemoryPropertyFlags properties)
-{
-    VkPhysicalDeviceMemoryProperties memProperties;
-    vkGetPhysicalDeviceMemoryProperties(physical_device, &memProperties);
-    for (uint32_t i{}; i < memProperties.memoryTypeCount; ++i)
-    {
-        if ((typeFilter & (1 << i)) && (memProperties.memoryTypes[i].propertyFlags & properties) == properties)
-            return i;
-    }
-
-    log_error("failed to find suitable memory type!");
-}
-
-void Image::createImage(
-    VkDevice logical_device,
-    VkPhysicalDevice physical_device,
-    const uint32_t width,
-    const uint32_t height,
-    uint32_t mipMapLevels,
-    VkSampleCountFlagBits numSamples,
-    const VkFormat format,
-    const VkImageTiling tiling,
-    const VkImageUsageFlags usage)
-{
-    VkImageCreateInfo imageInfo{};
-    imageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
-    imageInfo.imageType = VK_IMAGE_TYPE_2D;
-    imageInfo.extent.width = width;
-    imageInfo.extent.height = height;
-    imageInfo.extent.depth = 1;
-    imageInfo.mipLevels = mipMapLevels;
-    imageInfo.arrayLayers = 1;
-    imageInfo.format = format;
-    imageInfo.tiling = tiling;
-    imageInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-    imageInfo.usage = usage;
-    imageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-    imageInfo.samples = numSamples;
-    imageInfo.flags = 0;
-
-    if (vkCreateImage(logical_device, &imageInfo, nullptr, &image) != VK_SUCCESS)
-        log_error("failed to create image!");
-
-    VkMemoryRequirements memRequirements;
-    vkGetImageMemoryRequirements(logical_device, image, &memRequirements);
-
-    VkMemoryAllocateInfo allocInfo{};
-    allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-    allocInfo.allocationSize = memRequirements.size;
-    allocInfo.memoryTypeIndex = findMemoryType(physical_device, memRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-
-    if (vkAllocateMemory(logical_device, &allocInfo, nullptr, &image_memory) != VK_SUCCESS)
-        log_error("failed to allocate image memory");
-
-    vkBindImageMemory(logical_device, image, image_memory, 0);
-}
-
-void Image::deinit(VkDevice logical_device) {
-    vkDestroyImageView(logical_device, image_view, nullptr);
-    vkDestroyImage(logical_device, image, nullptr);
-    vkFreeMemory(logical_device, image_memory, nullptr);
 }
 
 void VulkanInstance::init()
@@ -323,120 +226,13 @@ void VulkanInstance::deinit()
     glfwTerminate();
 }
 
-void SingleTimeCommandBuffer::begin(VkDevice logical_device, VkCommandPool command_pool)
-{
-    VkCommandBufferAllocateInfo allocInfo{};
-    allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
-    allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-    allocInfo.commandPool = command_pool;
-    allocInfo.commandBufferCount = 1;
-
-    vkAllocateCommandBuffers(logical_device, &allocInfo, &command_buffer);
-
-    VkCommandBufferBeginInfo beginInfo{};
-    beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-    beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
-
-    vkBeginCommandBuffer(command_buffer, &beginInfo);
-}
-
-void SingleTimeCommandBuffer::end(VkDevice logical_device, VkQueue graphics_queue, VkCommandPool command_pool)
-{
-    vkEndCommandBuffer(command_buffer);
-
-    VkSubmitInfo submitInfo{};
-    submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-    submitInfo.commandBufferCount = 1;
-    submitInfo.pCommandBuffers = &command_buffer;
-
-    vkQueueSubmit(graphics_queue, 1, &submitInfo, VK_NULL_HANDLE);
-    vkQueueWaitIdle(graphics_queue);
-
-    vkFreeCommandBuffers(logical_device, command_pool, 1, &command_buffer);
-}
-
-void Buffer::init(VkPhysicalDevice physical_device, VkDevice logical_device, const VkDeviceSize size, const VkBufferUsageFlags usage, const VkMemoryPropertyFlags properties)
-{
-    buffer_size = size;
-
-    VkBufferCreateInfo bufferInfo{};
-    bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-    bufferInfo.size = size;
-    bufferInfo.usage = usage;
-    bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-
-    if (vkCreateBuffer(logical_device, &bufferInfo, nullptr, &buffer) != VK_SUCCESS)
-        log_error("failed to create buffer!");
-
-    VkMemoryRequirements memRequirements;
-    vkGetBufferMemoryRequirements(logical_device, buffer, &memRequirements);
-
-    VkMemoryAllocateInfo allocInfo{};
-    allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-    allocInfo.allocationSize = memRequirements.size;
-    allocInfo.memoryTypeIndex = findMemoryType(physical_device, memRequirements.memoryTypeBits, properties);
-
-    if (vkAllocateMemory(logical_device, &allocInfo, nullptr, &buffer_memory) != VK_SUCCESS)
-        log_error("failed to allocate buffer memory!");
-
-    vkBindBufferMemory(logical_device, buffer, buffer_memory, 0);
-}
-
-void Buffer::deinit(VkDevice logical_device)
-{
-    vkDestroyBuffer(logical_device, buffer, nullptr);
-    vkFreeMemory(logical_device, buffer_memory, nullptr);
-}
-
-void copyBuffer(VkDevice logical_device, VkCommandPool command_pool, VkQueue graphics_queue, Buffer& src_buffer, Buffer& dst_buffer)
-{
-    if (src_buffer.buffer_size != dst_buffer.buffer_size)
-        log_error("Mismatched buffer size!");
-
-    SingleTimeCommandBuffer command_buffer;
-    command_buffer.begin(logical_device, command_pool);
-
-    VkBufferCopy copyRegion{};
-    copyRegion.srcOffset = 0;
-    copyRegion.dstOffset = 0;
-    copyRegion.size = src_buffer.buffer_size;
-    vkCmdCopyBuffer(command_buffer.command_buffer, src_buffer.buffer, dst_buffer.buffer, 1, &copyRegion);
-
-    command_buffer.end(logical_device, graphics_queue, command_pool);
-}
-
-void uploadData(Buffer& buffer, VkDevice logical_device, const void* data)
-{
-    void* ptr;
-    vkMapMemory(logical_device, buffer.buffer_memory, 0, buffer.buffer_size, 0, &ptr);
-    memcpy(ptr, data, (size_t)buffer.buffer_size);
-    vkUnmapMemory(logical_device, buffer.buffer_memory);
-}
-
-template<typename T>
-void uploadBufferData(const DeviceManager& device_manager, Buffer& buffer, const std::vector<T>& data, VkBufferUsageFlagBits usage)
-{
-    const VkDeviceSize bufferSize = sizeof(data[0]) * data.size();
-
-    Buffer stagingBuffer;
-    stagingBuffer.init(device_manager.physicalDevice, device_manager.logicalDevice, bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
-    uploadData(stagingBuffer, device_manager.logicalDevice, data.data());
-
-    buffer.init(device_manager.physicalDevice, device_manager.logicalDevice, bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | usage, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-    buffer.num_elements = data.size();
-
-    copyBuffer(device_manager.logicalDevice, device_manager.command_pool, device_manager.graphicsQueue, stagingBuffer, buffer);
-
-    stagingBuffer.deinit(device_manager.logicalDevice);
-}
-
 void VulkanInstance::createBuffers(const std::vector<Vertex>& vertices, const std::vector<uint32_t>& indices)
 {
     // create vertex buffer
-    uploadBufferData(device_manager, vertex_buffer, vertices, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT);
+    uploadBufferData(device_manager.physicalDevice, device_manager.logicalDevice, device_manager.command_pool, device_manager.graphicsQueue, vertex_buffer, vertices, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT);
 
     // create index buffer
-    uploadBufferData(device_manager, index_buffer, indices, VK_BUFFER_USAGE_INDEX_BUFFER_BIT);
+    uploadBufferData(device_manager.physicalDevice, device_manager.logicalDevice, device_manager.command_pool, device_manager.graphicsQueue, index_buffer, indices, VK_BUFFER_USAGE_INDEX_BUFFER_BIT);
 
     createCommandBuffers();
 }
@@ -965,7 +761,7 @@ void Swapchain::init(const DeviceManager& device_manager, GLFWwindow* window, Vk
     swapChainImageViews.resize(image_count);
     for (size_t i = 0; i < image_count; i++)
     {
-        swapChainImageViews[i] = createImageView(device_manager, swapChainImages[i], surfaceFormat.format, VK_IMAGE_ASPECT_COLOR_BIT, 1);
+        swapChainImageViews[i] = createImageView(device_manager.logicalDevice, swapChainImages[i], surfaceFormat.format, VK_IMAGE_ASPECT_COLOR_BIT, 1);
     }
 
     imageFormat = surfaceFormat.format;
@@ -1367,7 +1163,7 @@ void Pipeline::init(const DeviceManager& device_manager, const Swapchain& swapch
             VK_IMAGE_TILING_OPTIMAL,
             VK_IMAGE_USAGE_TRANSIENT_ATTACHMENT_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT
         );
-        colour_image.image_view = createImageView(device_manager, colour_image.image, swapchain.imageFormat, VK_IMAGE_ASPECT_COLOR_BIT, 1);
+        colour_image.image_view = createImageView(device_manager.logicalDevice, colour_image.image, swapchain.imageFormat, VK_IMAGE_ASPECT_COLOR_BIT, 1);
         
         depth_image.createImage(
             device_manager.logicalDevice,
@@ -1380,7 +1176,7 @@ void Pipeline::init(const DeviceManager& device_manager, const Swapchain& swapch
             VK_IMAGE_TILING_OPTIMAL,
             VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT
         );
-        depth_image.image_view = createImageView(device_manager, depth_image.image, device_manager.depth_format, VK_IMAGE_ASPECT_DEPTH_BIT, 1);
+        depth_image.image_view = createImageView(device_manager.logicalDevice, depth_image.image, device_manager.depth_format, VK_IMAGE_ASPECT_DEPTH_BIT, 1);
     }
 
     // create framebuffers

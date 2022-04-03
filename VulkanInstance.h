@@ -4,8 +4,13 @@
 #include <GLFW/glfw3.h>
 
 #include "Vertex.h"
+#include "VulkanWrapper/Image.h"
+#include "VulkanWrapper/Buffer.h"
+#include "VulkanWrapper/CommandBuffer.h"
 
 #include <vector>
+
+using namespace VulkanWrapper;
 
 struct DeviceManager
 {
@@ -43,37 +48,6 @@ struct Swapchain
     void deinit(const DeviceManager& device_manager);
 };
 
-struct Image
-{
-    VkImage image;
-    VkDeviceMemory image_memory;
-    VkImageView image_view;
-
-    void createImage(
-        VkDevice logical_device,
-        VkPhysicalDevice physical_device,
-        const uint32_t width,
-        const uint32_t height,
-        uint32_t mipMapLevels,
-        VkSampleCountFlagBits numSamples,
-        const VkFormat format,
-        const VkImageTiling tiling,
-        const VkImageUsageFlags usage);
-
-    void deinit(VkDevice logical_device);
-};
-
-struct Buffer
-{
-    VkBuffer buffer;
-    VkDeviceMemory buffer_memory;
-    VkDeviceSize buffer_size;
-    size_t num_elements;
-
-    void init(VkPhysicalDevice physical_device, VkDevice logical_device, const VkDeviceSize size, const VkBufferUsageFlags usage, const VkMemoryPropertyFlags properties);
-    void deinit(VkDevice logical_device);
-};
-
 struct Pipeline
 {
     VkRenderPass render_pass;
@@ -94,14 +68,6 @@ struct Pipeline
 
     void init(const DeviceManager& device_manager, const Swapchain& swapchain);
     void deinit(const DeviceManager& device_manager);
-};
-
-struct SingleTimeCommandBuffer
-{
-    VkCommandBuffer command_buffer;
-
-    void begin(VkDevice logical_device, VkCommandPool command_pool);
-    void end(VkDevice logical_device, VkQueue graphics_queue, VkCommandPool command_pool);
 };
 
 struct UniformData
