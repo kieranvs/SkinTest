@@ -52,21 +52,21 @@ namespace VulkanWrapper
         vkFreeMemory(logical_device, buffer_memory, nullptr);
     }
 
-    void copyBuffer(VkDevice logical_device, VkCommandPool command_pool, VkQueue graphics_queue, Buffer& src_buffer, Buffer& dst_buffer)
+    void copyBuffer(DeviceManager& device_manager, Buffer& src_buffer, Buffer& dst_buffer)
     {
         if (src_buffer.buffer_size != dst_buffer.buffer_size)
             log_error("Mismatched buffer size!");
 
         SingleTimeCommandBuffer command_buffer;
-        command_buffer.begin(logical_device, command_pool);
+        command_buffer.begin(device_manager);
 
         VkBufferCopy copyRegion{};
         copyRegion.srcOffset = 0;
         copyRegion.dstOffset = 0;
         copyRegion.size = src_buffer.buffer_size;
-        vkCmdCopyBuffer(command_buffer.command_buffer, src_buffer.buffer, dst_buffer.buffer, 1, &copyRegion);
+        vkCmdCopyBuffer(command_buffer.command_buffer.command_buffers[0], src_buffer.buffer, dst_buffer.buffer, 1, &copyRegion);
 
-        command_buffer.end(logical_device, graphics_queue, command_pool);
+        command_buffer.end(device_manager);
     }
 
     void uploadData(Buffer& buffer, VkDevice logical_device, const void* data)

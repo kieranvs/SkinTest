@@ -39,7 +39,7 @@ struct VulkanInstance
     Buffer vertex_buffer;
     Buffer index_buffer;
 
-    std::vector<VkCommandBuffer> command_buffers;
+    CommandBufferSet command_buffer_set;
 
     std::vector<VkSemaphore> image_available_semaphores; // Per frame in flight: swap chain image is available to start being used
     std::vector<VkSemaphore> render_finished_semaphores; // Per frame in flight: signalled when command buffers have finished execution

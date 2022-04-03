@@ -189,7 +189,7 @@ void VulkanInstance::init()
 
 void VulkanInstance::deinit()
 {
-    vkFreeCommandBuffers(device_manager.logicalDevice, device_manager.command_pool, static_cast<uint32_t>(command_buffers.size()), command_buffers.data());
+    command_buffer_set.deinit(device_manager);
 
     pipeline.deinit(device_manager);
     swapchain.deinit(device_manager);
@@ -224,36 +224,21 @@ void VulkanInstance::deinit()
 void VulkanInstance::createBuffers(const std::vector<Vertex>& vertices, const std::vector<uint32_t>& indices)
 {
     // create vertex buffer
-    uploadBufferData(device_manager.physicalDevice, device_manager.logicalDevice, device_manager.command_pool, device_manager.graphicsQueue, vertex_buffer, vertices, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT);
+    uploadBufferData(device_manager, vertex_buffer, vertices, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT);
 
     // create index buffer
-    uploadBufferData(device_manager.physicalDevice, device_manager.logicalDevice, device_manager.command_pool, device_manager.graphicsQueue, index_buffer, indices, VK_BUFFER_USAGE_INDEX_BUFFER_BIT);
+    uploadBufferData(device_manager, index_buffer, indices, VK_BUFFER_USAGE_INDEX_BUFFER_BIT);
 
     createCommandBuffers();
 }
 
 void VulkanInstance::createCommandBuffers()
 {
-    command_buffers.resize(pipeline.framebuffers.size());
+    command_buffer_set.init(device_manager, pipeline.framebuffers.size());
 
-    VkCommandBufferAllocateInfo allocInfo{};
-    allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
-    allocInfo.commandPool = device_manager.command_pool;
-    allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-    allocInfo.commandBufferCount = (uint32_t)command_buffers.size();
-
-    if (vkAllocateCommandBuffers(device_manager.logicalDevice, &allocInfo, command_buffers.data()) != VK_SUCCESS)
-        log_error("failed to allocate command buffers!");
-
-    for (size_t i = 0; i < command_buffers.size(); ++i)
+    for (size_t i = 0; i < command_buffer_set.command_buffers.size(); ++i)
     {
-        VkCommandBufferBeginInfo beginInfo{};
-        beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-        beginInfo.flags = 0;
-        beginInfo.pInheritanceInfo = nullptr;
-
-        if (vkBeginCommandBuffer(command_buffers[i], &beginInfo) != VK_SUCCESS)
-            log_error("failed to begin recording command buffer!");
+        command_buffer_set.begin(i, 0);
 
         VkRenderPassBeginInfo renderPassInfo{};
         renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
@@ -268,23 +253,22 @@ void VulkanInstance::createCommandBuffers()
         renderPassInfo.pClearValues = clearValues.data();
 
         // no error handling from here while recording
-        vkCmdBeginRenderPass(command_buffers[i], &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
-        vkCmdBindPipeline(command_buffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline.graphics_pipeline);
+        vkCmdBeginRenderPass(command_buffer_set.command_buffers[i], &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
+        vkCmdBindPipeline(command_buffer_set.command_buffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline.graphics_pipeline);
 
         VkBuffer vertexBuffers[] = { vertex_buffer.buffer };
         VkDeviceSize offsets[] = { 0 };
-        vkCmdBindVertexBuffers(command_buffers[i], 0, 1, vertexBuffers, offsets);
+        vkCmdBindVertexBuffers(command_buffer_set.command_buffers[i], 0, 1, vertexBuffers, offsets);
 
-        vkCmdBindIndexBuffer(command_buffers[i], index_buffer.buffer, 0, VK_INDEX_TYPE_UINT32);
+        vkCmdBindIndexBuffer(command_buffer_set.command_buffers[i], index_buffer.buffer, 0, VK_INDEX_TYPE_UINT32);
 
-        vkCmdBindDescriptorSets(command_buffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline.pipeline_layout, 0, 1, &pipeline.descriptor_sets[i], 0, nullptr);
+        vkCmdBindDescriptorSets(command_buffer_set.command_buffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline.pipeline_layout, 0, 1, &pipeline.descriptor_sets[i], 0, nullptr);
 
-        vkCmdDrawIndexed(command_buffers[i], static_cast<uint32_t>(index_buffer.num_elements), 1, 0, 0, 0);
+        vkCmdDrawIndexed(command_buffer_set.command_buffers[i], static_cast<uint32_t>(index_buffer.num_elements), 1, 0, 0, 0);
 
-        vkCmdEndRenderPass(command_buffers[i]);
+        vkCmdEndRenderPass(command_buffer_set.command_buffers[i]);
 
-        if (vkEndCommandBuffer(command_buffers[i]) != VK_SUCCESS)
-            log_error("failed to record command buffer!");
+        command_buffer_set.end();
     }
 }
 
@@ -338,7 +322,7 @@ void VulkanInstance::mainLoop()
             submitInfo.pWaitSemaphores = waitSemaphores;
             submitInfo.pWaitDstStageMask = waitStages;
             submitInfo.commandBufferCount = 1;
-            submitInfo.pCommandBuffers = &command_buffers[image_index];
+            submitInfo.pCommandBuffers = &command_buffer_set.command_buffers[image_index];
 
             VkSemaphore signalSemaphores[] = { render_finished_semaphores[currentFrame] };
             submitInfo.signalSemaphoreCount = 1;
@@ -394,7 +378,7 @@ void VulkanInstance::recreateSwapChain()
 
     vkDeviceWaitIdle(device_manager.logicalDevice);
 
-    vkFreeCommandBuffers(device_manager.logicalDevice, device_manager.command_pool, static_cast<uint32_t>(command_buffers.size()), command_buffers.data());
+    command_buffer_set.deinit(device_manager);
 
     pipeline.deinit(device_manager);
     swapchain.deinit(device_manager);
