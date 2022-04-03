@@ -59,13 +59,21 @@ add_executable(
 	VulkanInstance.h
 	VulkanInstance.cpp
 	Vertex.h
-	VulkanWrapper/Image.h
-	VulkanWrapper/Image.cpp
 	VulkanWrapper/Buffer.h
 	VulkanWrapper/Buffer.cpp
 	VulkanWrapper/CommandBuffer.h
 	VulkanWrapper/CommandBuffer.cpp
+	VulkanWrapper/DeviceManager.h
+	VulkanWrapper/DeviceManager.cpp
+	VulkanWrapper/Image.h
+	VulkanWrapper/Image.cpp
 	VulkanWrapper/Log.h
+	VulkanWrapper/Pipeline.h
+	VulkanWrapper/Pipeline.cpp
+	VulkanWrapper/Shader.h
+	VulkanWrapper/Shader.cpp
+	VulkanWrapper/Swapchain.h
+	VulkanWrapper/Swapchain.cpp
 	Shaders/shader.frag
 	Shaders/shader.vert
 )

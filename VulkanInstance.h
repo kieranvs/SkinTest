@@ -7,68 +7,13 @@
 #include "VulkanWrapper/Image.h"
 #include "VulkanWrapper/Buffer.h"
 #include "VulkanWrapper/CommandBuffer.h"
+#include "VulkanWrapper/Swapchain.h"
+#include "VulkanWrapper/DeviceManager.h"
+#include "VulkanWrapper/Pipeline.h"
 
 #include <vector>
 
 using namespace VulkanWrapper;
-
-struct DeviceManager
-{
-    VkPhysicalDevice physicalDevice = VK_NULL_HANDLE;
-    uint32_t graphicsQueueFamily;
-    uint32_t presentQueueFamily;
-    VkQueue graphicsQueue;
-    VkQueue presentQueue;
-
-    VkCommandPool command_pool;
-
-    VkDevice logicalDevice;
-
-    VkSurfaceCapabilitiesKHR surface_capabilities;
-    std::vector<VkSurfaceFormatKHR> surface_formats;
-    std::vector<VkPresentModeKHR> surface_presentModes;
-    VkFormat depth_format;
-
-    VkSampleCountFlagBits msaaSamples;
-
-    void init(VkInstance& instance, VkSurfaceKHR& surface);
-    void deinit();
-};
-
-struct Swapchain
-{
-    VkExtent2D extent;
-    VkSwapchainKHR handle;
-
-    std::vector<VkImage> swapChainImages;
-    std::vector<VkImageView> swapChainImageViews;
-    VkFormat imageFormat;
-
-    void init(const DeviceManager& device_manager, GLFWwindow* window, VkSurfaceKHR surface);
-    void deinit(const DeviceManager& device_manager);
-};
-
-struct Pipeline
-{
-    VkRenderPass render_pass;
-
-    VkDescriptorSetLayout descriptor_set_layout;
-    VkDescriptorPool descriptor_pool;
-    std::vector<VkDescriptorSet> descriptor_sets;
-    
-    VkPipeline graphics_pipeline;
-    VkPipelineLayout pipeline_layout;
-
-    Image colour_image;
-    Image depth_image;
-
-    std::vector<Buffer> uniform_buffers;
-
-    std::vector<VkFramebuffer> framebuffers;
-
-    void init(const DeviceManager& device_manager, const Swapchain& swapchain);
-    void deinit(const DeviceManager& device_manager);
-};
 
 struct UniformData
 {
