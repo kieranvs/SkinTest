@@ -163,7 +163,7 @@ void VulkanInstance::init()
         image_available_semaphores.resize(MAX_FRAMES_IN_FLIGHT);
         render_finished_semaphores.resize(MAX_FRAMES_IN_FLIGHT);
         frame_finished_fences.resize(MAX_FRAMES_IN_FLIGHT);
-        image_to_frame_fences.resize(swapchain.swapChainImages.size(), VK_NULL_HANDLE);
+        image_to_frame_fences.resize(swapchain.images.size(), VK_NULL_HANDLE);
 
         // similar to fences but can only be used within or across queues
         VkSemaphoreCreateInfo semaphoreInfo{};
@@ -236,7 +236,7 @@ void VulkanInstance::createCommandBuffers()
 {
     command_buffer_set.init(device_manager, pipeline.framebuffers.size());
 
-    for (size_t i = 0; i < command_buffer_set.command_buffers.size(); ++i)
+    for (size_t i = 0; i < command_buffer_set.size(); ++i)
     {
         command_buffer_set.begin(i, 0);
 
@@ -253,20 +253,20 @@ void VulkanInstance::createCommandBuffers()
         renderPassInfo.pClearValues = clearValues.data();
 
         // no error handling from here while recording
-        vkCmdBeginRenderPass(command_buffer_set.command_buffers[i], &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
-        vkCmdBindPipeline(command_buffer_set.command_buffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline.graphics_pipeline);
+        vkCmdBeginRenderPass(command_buffer_set[i], &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
+        vkCmdBindPipeline(command_buffer_set[i], VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline.graphics_pipeline);
 
-        VkBuffer vertexBuffers[] = { vertex_buffer.buffer };
+        VkBuffer vertexBuffers[] = { vertex_buffer.handle };
         VkDeviceSize offsets[] = { 0 };
-        vkCmdBindVertexBuffers(command_buffer_set.command_buffers[i], 0, 1, vertexBuffers, offsets);
+        vkCmdBindVertexBuffers(command_buffer_set[i], 0, 1, vertexBuffers, offsets);
 
-        vkCmdBindIndexBuffer(command_buffer_set.command_buffers[i], index_buffer.buffer, 0, VK_INDEX_TYPE_UINT32);
+        vkCmdBindIndexBuffer(command_buffer_set[i], index_buffer.handle, 0, VK_INDEX_TYPE_UINT32);
 
-        vkCmdBindDescriptorSets(command_buffer_set.command_buffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline.pipeline_layout, 0, 1, &pipeline.descriptor_sets[i], 0, nullptr);
+        vkCmdBindDescriptorSets(command_buffer_set[i], VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline.pipeline_layout, 0, 1, &pipeline.descriptor_sets[i], 0, nullptr);
 
-        vkCmdDrawIndexed(command_buffer_set.command_buffers[i], static_cast<uint32_t>(index_buffer.num_elements), 1, 0, 0, 0);
+        vkCmdDrawIndexed(command_buffer_set[i], static_cast<uint32_t>(index_buffer.count), 1, 0, 0, 0);
 
-        vkCmdEndRenderPass(command_buffer_set.command_buffers[i]);
+        vkCmdEndRenderPass(command_buffer_set[i]);
 
         command_buffer_set.end();
     }
@@ -322,7 +322,7 @@ void VulkanInstance::mainLoop()
             submitInfo.pWaitSemaphores = waitSemaphores;
             submitInfo.pWaitDstStageMask = waitStages;
             submitInfo.commandBufferCount = 1;
-            submitInfo.pCommandBuffers = &command_buffer_set.command_buffers[image_index];
+            submitInfo.pCommandBuffers = &command_buffer_set[image_index];
 
             VkSemaphore signalSemaphores[] = { render_finished_semaphores[currentFrame] };
             submitInfo.signalSemaphoreCount = 1;
@@ -386,7 +386,7 @@ void VulkanInstance::recreateSwapChain()
     auto swapchain_support = getSwapchainSupport(device_manager.physicalDevice, surface);
     device_manager.surface_capabilities = swapchain_support.capabilities;
     device_manager.surface_formats = swapchain_support.formats;
-    device_manager.surface_presentModes = swapchain_support.presentModes;
+    device_manager.surface_presentModes = swapchain_support.present_modes;
 
     swapchain.init(device_manager, window, surface);
     pipeline.init(device_manager, swapchain, sizeof(UniformData));

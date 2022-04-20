@@ -11,7 +11,7 @@ namespace VulkanWrapper
     {
         VkSurfaceCapabilitiesKHR capabilities;
         std::vector<VkSurfaceFormatKHR> formats;
-        std::vector<VkPresentModeKHR> presentModes;
+        std::vector<VkPresentModeKHR> present_modes;
 
         bool suitable = false;
     };
@@ -23,9 +23,9 @@ namespace VulkanWrapper
         VkExtent2D extent;
         VkSwapchainKHR handle;
 
-        std::vector<VkImage> swapChainImages;
-        std::vector<VkImageView> swapChainImageViews;
-        VkFormat imageFormat;
+        std::vector<VkImage> images;
+        std::vector<VkImageView> image_views;
+        VkFormat image_format;
 
         void init(const DeviceManager& device_manager, GLFWwindow* window, VkSurfaceKHR surface);
         void deinit(const DeviceManager& device_manager);

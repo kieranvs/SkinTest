@@ -7,9 +7,9 @@ namespace VulkanWrapper
 {
     struct Image
     {
-        VkImage image;
-        VkDeviceMemory image_memory;
-        VkImageView image_view;
+        VkImage handle;
+        VkDeviceMemory memory;
+        VkImageView view;
 
         void createImage(
             VkDevice logical_device,
@@ -25,5 +25,5 @@ namespace VulkanWrapper
         void deinit(VkDevice logical_device);
     };
 
-    VkImageView createImageView(VkDevice logical_device, VkImage image, VkFormat format, VkImageAspectFlags aspectFlags, uint32_t mipMapLevels );
+    VkImageView createImageView(VkDevice logical_device, VkImage image_handle, VkFormat format, VkImageAspectFlags aspect_flags, uint32_t mip_map_levels );
 }

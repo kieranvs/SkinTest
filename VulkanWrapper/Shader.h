@@ -14,7 +14,7 @@ namespace VulkanWrapper
             Fragment
         };
 
-        VkShaderModule shader_module{};
+        VkShaderModule handle{};
         VkPipelineShaderStageCreateInfo create_info{};
 
         void init(const std::string& file_path, const Type type, VkDevice logical_device);

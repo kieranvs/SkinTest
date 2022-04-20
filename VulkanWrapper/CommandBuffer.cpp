@@ -7,21 +7,21 @@ namespace VulkanWrapper
 {
     void CommandBufferSet::init(DeviceManager& device_manager, size_t num_buffers)
     {
-        command_buffers.resize(num_buffers);
+        handles.resize(num_buffers);
 
         VkCommandBufferAllocateInfo allocInfo{};
         allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
         allocInfo.commandPool = device_manager.command_pool;
         allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-        allocInfo.commandBufferCount = (uint32_t)command_buffers.size();
+        allocInfo.commandBufferCount = (uint32_t)handles.size();
 
-        if (vkAllocateCommandBuffers(device_manager.logicalDevice, &allocInfo, command_buffers.data()) != VK_SUCCESS)
+        if (vkAllocateCommandBuffers(device_manager.logicalDevice, &allocInfo, handles.data()) != VK_SUCCESS)
             log_error("failed to allocate command buffers!");
     }
 
     void CommandBufferSet::deinit(DeviceManager& device_manager)
     {
-        vkFreeCommandBuffers(device_manager.logicalDevice, device_manager.command_pool, static_cast<uint32_t>(command_buffers.size()), command_buffers.data());
+        vkFreeCommandBuffers(device_manager.logicalDevice, device_manager.command_pool, static_cast<uint32_t>(handles.size()), handles.data());
     }
 
     void CommandBufferSet::begin(size_t buffer_index, VkCommandBufferUsageFlags flags)
@@ -35,7 +35,7 @@ namespace VulkanWrapper
         beginInfo.flags = flags;
         beginInfo.pInheritanceInfo = nullptr;
 
-        if (vkBeginCommandBuffer(command_buffers[buffer_index], &beginInfo) != VK_SUCCESS)
+        if (vkBeginCommandBuffer(handles[buffer_index], &beginInfo) != VK_SUCCESS)
             log_error("failed to begin recording command buffer!");
     }
 
@@ -44,7 +44,7 @@ namespace VulkanWrapper
         if (!active_buffer.has_value())
             log_error("Mismatched CommandBufferSet::begin()/end()");
 
-        if (vkEndCommandBuffer(command_buffers[active_buffer.value()]) != VK_SUCCESS)
+        if (vkEndCommandBuffer(handles[active_buffer.value()]) != VK_SUCCESS)
             log_error("failed to record command buffer!");
 
         active_buffer.reset();
@@ -52,22 +52,22 @@ namespace VulkanWrapper
 
     void SingleTimeCommandBuffer::begin(DeviceManager& device_manager)
     {
-        command_buffer.init(device_manager, 1);
-        command_buffer.begin(0, VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
+        command_buffer_set.init(device_manager, 1);
+        command_buffer_set.begin(0, VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
     }
 
     void SingleTimeCommandBuffer::end(DeviceManager& device_manager)
     {
-        command_buffer.end();
+        command_buffer_set.end();
 
         VkSubmitInfo submitInfo{};
         submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
         submitInfo.commandBufferCount = 1;
-        submitInfo.pCommandBuffers = &command_buffer.command_buffers[0];
+        submitInfo.pCommandBuffers = &command_buffer_set[0];
 
         vkQueueSubmit(device_manager.graphicsQueue, 1, &submitInfo, VK_NULL_HANDLE);
         vkQueueWaitIdle(device_manager.graphicsQueue);
 
-        command_buffer.deinit(device_manager);
+        command_buffer_set.deinit(device_manager);
     }
 }

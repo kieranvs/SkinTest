@@ -11,10 +11,10 @@ namespace VulkanWrapper
 {
     struct Buffer
     {
-        VkBuffer buffer;
-        VkDeviceMemory buffer_memory;
-        VkDeviceSize buffer_size;
-        size_t num_elements;
+        VkBuffer handle;
+        VkDeviceMemory memory;
+        VkDeviceSize size_bytes;
+        size_t count;
 
         void init(VkPhysicalDevice physical_device, VkDevice logical_device, const VkDeviceSize size, const VkBufferUsageFlags usage, const VkMemoryPropertyFlags properties);
         void deinit(VkDevice logical_device);
@@ -33,7 +33,7 @@ namespace VulkanWrapper
         uploadData(stagingBuffer, device_manager.logicalDevice, data.data());
 
         buffer.init(device_manager.physicalDevice, device_manager.logicalDevice, bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | usage, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-        buffer.num_elements = data.size();
+        buffer.count = data.size();
 
         copyBuffer(device_manager, stagingBuffer, buffer);
 

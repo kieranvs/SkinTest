@@ -26,8 +26,8 @@ namespace VulkanWrapper
         if (presentModeCount == 0)
             return swapchain_support;
 
-        swapchain_support.presentModes.resize(presentModeCount);
-        vkGetPhysicalDeviceSurfacePresentModesKHR(device, surface, &presentModeCount, swapchain_support.presentModes.data());
+        swapchain_support.present_modes.resize(presentModeCount);
+        vkGetPhysicalDeviceSurfacePresentModesKHR(device, surface, &presentModeCount, swapchain_support.present_modes.data());
 
         swapchain_support.suitable = true;
 
@@ -114,21 +114,21 @@ namespace VulkanWrapper
             log_error("Failed to create swapchain!");
 
         vkGetSwapchainImagesKHR(device_manager.logicalDevice, handle, &image_count, nullptr);
-        swapChainImages.resize(image_count);
-        vkGetSwapchainImagesKHR(device_manager.logicalDevice, handle, &image_count, swapChainImages.data());
+        images.resize(image_count);
+        vkGetSwapchainImagesKHR(device_manager.logicalDevice, handle, &image_count, images.data());
 
-        swapChainImageViews.resize(image_count);
+        image_views.resize(image_count);
         for (size_t i = 0; i < image_count; i++)
         {
-            swapChainImageViews[i] = createImageView(device_manager.logicalDevice, swapChainImages[i], surfaceFormat.format, VK_IMAGE_ASPECT_COLOR_BIT, 1);
+            image_views[i] = createImageView(device_manager.logicalDevice, images[i], surfaceFormat.format, VK_IMAGE_ASPECT_COLOR_BIT, 1);
         }
 
-        imageFormat = surfaceFormat.format;
+        image_format = surfaceFormat.format;
     }
 
     void Swapchain::deinit(const DeviceManager& device_manager)
     {
-        for (auto imageView : swapChainImageViews)
+        for (auto imageView : image_views)
             vkDestroyImageView(device_manager.logicalDevice, imageView, nullptr);
 
         vkDestroySwapchainKHR(device_manager.logicalDevice, handle, nullptr);

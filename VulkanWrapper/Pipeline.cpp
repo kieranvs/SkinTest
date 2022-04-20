@@ -19,7 +19,7 @@ namespace VulkanWrapper
 
             // Colour
             VkAttachmentDescription& colourAttachment = attachment_descriptions[0];
-            colourAttachment.format = swapchain.imageFormat;
+            colourAttachment.format = swapchain.image_format;
             colourAttachment.samples = device_manager.msaaSamples;
             colourAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
             colourAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
@@ -49,7 +49,7 @@ namespace VulkanWrapper
 
             // Colour resolve
             VkAttachmentDescription& resolveAttachment = attachment_descriptions[2];
-            resolveAttachment.format = swapchain.imageFormat;
+            resolveAttachment.format = swapchain.image_format;
             resolveAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
             resolveAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
             resolveAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
@@ -121,7 +121,7 @@ namespace VulkanWrapper
         {
             std::array<VkDescriptorPoolSize, 1> poolSizes{};
             poolSizes[0].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-            poolSizes[0].descriptorCount = static_cast<uint32_t>(swapchain.swapChainImages.size());
+            poolSizes[0].descriptorCount = static_cast<uint32_t>(swapchain.images.size());
             // poolSizes[1].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
             // poolSizes[1].descriptorCount = static_cast<uint32_t>(swapchain.swapChainImages.size());
 
@@ -129,7 +129,7 @@ namespace VulkanWrapper
             poolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
             poolInfo.poolSizeCount = static_cast<uint32_t>(poolSizes.size());
             poolInfo.pPoolSizes = poolSizes.data();
-            poolInfo.maxSets = static_cast<uint32_t>(swapchain.swapChainImages.size());
+            poolInfo.maxSets = static_cast<uint32_t>(swapchain.images.size());
 
             if (vkCreateDescriptorPool(device_manager.logicalDevice, &poolInfo, nullptr, &descriptor_pool) != VK_SUCCESS)
                 log_error("failed to create descriptor pool");
@@ -137,7 +137,7 @@ namespace VulkanWrapper
 
         // Create uniform buffers
         {
-            uniform_buffers.resize(swapchain.swapChainImages.size());
+            uniform_buffers.resize(swapchain.images.size());
 
             for (auto& buffer : uniform_buffers)
             {
@@ -147,21 +147,21 @@ namespace VulkanWrapper
 
         // create descriptor sets
         {
-            std::vector<VkDescriptorSetLayout> layouts(swapchain.swapChainImages.size(), descriptor_set_layout);
+            std::vector<VkDescriptorSetLayout> layouts(swapchain.images.size(), descriptor_set_layout);
             VkDescriptorSetAllocateInfo allocInfo{};
             allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
             allocInfo.descriptorPool = descriptor_pool;
-            allocInfo.descriptorSetCount = static_cast<uint32_t>(swapchain.swapChainImages.size());
+            allocInfo.descriptorSetCount = static_cast<uint32_t>(swapchain.images.size());
             allocInfo.pSetLayouts = layouts.data();
 
-            descriptor_sets.resize(swapchain.swapChainImages.size());
+            descriptor_sets.resize(swapchain.images.size());
             if (vkAllocateDescriptorSets(device_manager.logicalDevice, &allocInfo, descriptor_sets.data()) != VK_SUCCESS)
                 log_error("failed to allocate descriptor sets!");
 
-            for (size_t i = 0; i < swapchain.swapChainImages.size(); ++i)
+            for (size_t i = 0; i < swapchain.images.size(); ++i)
             {
                 VkDescriptorBufferInfo bufferInfo{};
-                bufferInfo.buffer = uniform_buffers[i].buffer;
+                bufferInfo.buffer = uniform_buffers[i].handle;
                 bufferInfo.offset = 0;
                 bufferInfo.range = uniform_size;
 
@@ -338,11 +338,11 @@ namespace VulkanWrapper
                 swapchain.extent.height,
                 1,
                 device_manager.msaaSamples,
-                swapchain.imageFormat,
+                swapchain.image_format,
                 VK_IMAGE_TILING_OPTIMAL,
                 VK_IMAGE_USAGE_TRANSIENT_ATTACHMENT_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT
             );
-            colour_image.image_view = createImageView(device_manager.logicalDevice, colour_image.image, swapchain.imageFormat, VK_IMAGE_ASPECT_COLOR_BIT, 1);
+            colour_image.view = createImageView(device_manager.logicalDevice, colour_image.handle, swapchain.image_format, VK_IMAGE_ASPECT_COLOR_BIT, 1);
             
             depth_image.createImage(
                 device_manager.logicalDevice,
@@ -355,16 +355,16 @@ namespace VulkanWrapper
                 VK_IMAGE_TILING_OPTIMAL,
                 VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT
             );
-            depth_image.image_view = createImageView(device_manager.logicalDevice, depth_image.image, device_manager.depth_format, VK_IMAGE_ASPECT_DEPTH_BIT, 1);
+            depth_image.view = createImageView(device_manager.logicalDevice, depth_image.handle, device_manager.depth_format, VK_IMAGE_ASPECT_DEPTH_BIT, 1);
         }
 
         // create framebuffers
         {
-            framebuffers.resize(swapchain.swapChainImageViews.size());
+            framebuffers.resize(swapchain.image_views.size());
 
-            for (size_t i{}; i < swapchain.swapChainImageViews.size(); ++i)
+            for (size_t i{}; i < swapchain.image_views.size(); ++i)
             {
-                std::array<VkImageView, 3> attachments = { colour_image.image_view, depth_image.image_view, swapchain.swapChainImageViews[i] };
+                std::array<VkImageView, 3> attachments = { colour_image.view, depth_image.view, swapchain.image_views[i] };
 
                 VkFramebufferCreateInfo framebufferInfo{};
                 framebufferInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;

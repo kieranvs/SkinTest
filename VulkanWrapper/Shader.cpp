@@ -32,7 +32,7 @@ namespace VulkanWrapper
             module_create_info.codeSize = buffer.size();
             module_create_info.pCode = reinterpret_cast<const uint32_t*>(buffer.data());
 
-            if (vkCreateShaderModule(logical_device, &module_create_info, nullptr, &shader_module) != VK_SUCCESS)
+            if (vkCreateShaderModule(logical_device, &module_create_info, nullptr, &handle) != VK_SUCCESS)
                 log_error("failed to create shader module!");
         }
 
@@ -40,13 +40,13 @@ namespace VulkanWrapper
         {
             create_info.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
             create_info.stage = type == Type::Vertex ? VK_SHADER_STAGE_VERTEX_BIT : VK_SHADER_STAGE_FRAGMENT_BIT;
-            create_info.module = shader_module;
+            create_info.module = handle;
             create_info.pName = "main";
         }
     }
 
     void Shader::deinit(VkDevice logical_device)
     {
-        vkDestroyShaderModule(logical_device, shader_module, nullptr);
+        vkDestroyShaderModule(logical_device, handle, nullptr);
     }
 }

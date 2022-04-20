@@ -131,7 +131,7 @@ namespace VulkanWrapper
 
                     surface_capabilities = deviceSettings.swapchain_support.capabilities;
                     surface_formats = deviceSettings.swapchain_support.formats;
-                    surface_presentModes = deviceSettings.swapchain_support.presentModes;
+                    surface_presentModes = deviceSettings.swapchain_support.present_modes;
                     depth_format = deviceSettings.depth_format;
                     
                     msaaSamples = [&device]() {
