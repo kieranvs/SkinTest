@@ -194,9 +194,6 @@ void VulkanInstance::deinit()
     pipeline.deinit(device_manager);
     swapchain.deinit(device_manager);
 
-    vertex_buffer.deinit(device_manager.logicalDevice);
-    index_buffer.deinit(device_manager.logicalDevice);
-
     for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
     {
         vkDestroySemaphore(device_manager.logicalDevice, render_finished_semaphores[i], nullptr);
@@ -221,17 +218,6 @@ void VulkanInstance::deinit()
     glfwTerminate();
 }
 
-void VulkanInstance::createBuffers(const std::vector<Vertex>& vertices, const std::vector<uint32_t>& indices)
-{
-    // create vertex buffer
-    uploadBufferData(device_manager, vertex_buffer, vertices, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT);
-
-    // create index buffer
-    uploadBufferData(device_manager, index_buffer, indices, VK_BUFFER_USAGE_INDEX_BUFFER_BIT);
-
-    createCommandBuffers();
-}
-
 void VulkanInstance::createCommandBuffers()
 {
     command_buffer_set.init(device_manager, pipeline.framebuffers.size());
@@ -244,7 +230,7 @@ void VulkanInstance::createCommandBuffers()
         renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
         renderPassInfo.renderPass = pipeline.render_pass;
         renderPassInfo.framebuffer = pipeline.framebuffers[i];
-        renderPassInfo.renderArea.offset = {0, 0};
+        renderPassInfo.renderArea.offset = { 0, 0 };
         renderPassInfo.renderArea.extent = swapchain.extent;
         std::array<VkClearValue, 2> clearValues{};
         clearValues[0].color = { 0.0f, 0.0f, 0.0f, 1.0f };
@@ -256,15 +242,7 @@ void VulkanInstance::createCommandBuffers()
         vkCmdBeginRenderPass(command_buffer_set[i], &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
         vkCmdBindPipeline(command_buffer_set[i], VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline.graphics_pipeline);
 
-        VkBuffer vertexBuffers[] = { vertex_buffer.handle };
-        VkDeviceSize offsets[] = { 0 };
-        vkCmdBindVertexBuffers(command_buffer_set[i], 0, 1, vertexBuffers, offsets);
-
-        vkCmdBindIndexBuffer(command_buffer_set[i], index_buffer.handle, 0, VK_INDEX_TYPE_UINT32);
-
-        vkCmdBindDescriptorSets(command_buffer_set[i], VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline.pipeline_layout, 0, 1, &pipeline.descriptor_sets[i], 0, nullptr);
-
-        vkCmdDrawIndexed(command_buffer_set[i], static_cast<uint32_t>(index_buffer.count), 1, 0, 0, 0);
+        command_buffer_callback(pipeline, i, command_buffer_set[i]);
 
         vkCmdEndRenderPass(command_buffer_set[i]);
 
@@ -274,6 +252,8 @@ void VulkanInstance::createCommandBuffers()
 
 void VulkanInstance::mainLoop()
 {
+    createCommandBuffers();
+
     size_t currentFrame = 0;
     while (!glfwWindowShouldClose(window))
     {

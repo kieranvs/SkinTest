@@ -12,6 +12,7 @@
 #include "VulkanWrapper/Pipeline.h"
 
 #include <vector>
+#include <functional>
 
 using namespace VulkanWrapper;
 
@@ -36,9 +37,6 @@ struct VulkanInstance
     Swapchain swapchain;
     Pipeline pipeline;
 
-    Buffer vertex_buffer;
-    Buffer index_buffer;
-
     CommandBufferSet command_buffer_set;
 
     std::vector<VkSemaphore> image_available_semaphores; // Per frame in flight: swap chain image is available to start being used
@@ -46,10 +44,11 @@ struct VulkanInstance
     std::vector<VkFence> frame_finished_fences; // Per frame in flight
     std::vector<VkFence> image_to_frame_fences; // Per swapchain image
 
+    std::function<void(const VulkanWrapper::Pipeline& pipeline, const size_t i, const VkCommandBuffer command_buffer )> command_buffer_callback;
+
     void init();
     void deinit();
 
-    void createBuffers(const std::vector<Vertex>& vertices, const std::vector<uint32_t>& indices);
     void createCommandBuffers();
 
     void mainLoop();
