@@ -16,13 +16,6 @@
 
 using namespace VulkanWrapper;
 
-struct UniformData
-{
-    alignas(16) glm::mat4 model;
-    alignas(16) glm::mat4 view;
-    alignas(16) glm::mat4 proj;
-};
-
 struct VulkanInstance
 {
     VkInstance instance{};
@@ -45,6 +38,7 @@ struct VulkanInstance
     std::vector<VkFence> image_to_frame_fences; // Per swapchain image
 
     std::function<void(const VulkanWrapper::Pipeline& pipeline, const size_t i, const VkCommandBuffer command_buffer )> command_buffer_callback;
+    std::function<void(VulkanWrapper::Buffer& buffer, VkDevice logical_device)> update_uniforms_callback;
 
     ShaderSettings shader_settings;
 

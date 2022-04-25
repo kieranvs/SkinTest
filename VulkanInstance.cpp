@@ -1,8 +1,6 @@
 #include "VulkanInstance.h"
 #include "VulkanWrapper/Log.h"
 
-#include "glm/gtc/matrix_transform.hpp"
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <cstring>
@@ -282,15 +280,7 @@ void VulkanInstance::mainLoop()
         }
 
         // update uniform buffer
-        {
-            UniformData uniform_data{};
-            uniform_data.model = glm::mat4(1.0f);
-            uniform_data.view = glm::lookAt(glm::vec3(2.0f, 2.0f, 2.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
-            uniform_data.proj = glm::perspective(glm::radians(45.0f), swapchain.extent.width / (float)swapchain.extent.height, 0.1f, 10.0f);
-            uniform_data.proj[1][1] *= -1; // correction of inverted Y in OpenGL
-
-            uploadData(pipeline.uniform_buffers[image_index], device_manager.logicalDevice, &uniform_data);
-        }
+        update_uniforms_callback(pipeline.uniform_buffers[image_index], device_manager.logicalDevice);
 
         // submit command buffer
         {

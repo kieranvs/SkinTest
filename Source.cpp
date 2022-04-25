@@ -1,6 +1,9 @@
 #include "VulkanInstance.h"
 #include "Vertex.h"
 
+#include <glm/glm.hpp>
+#include "glm/gtc/matrix_transform.hpp"
+
 int main()
 {
     VulkanWrapper::Buffer vertex_buffer;
@@ -13,7 +16,11 @@ int main()
     const auto& attribute_descriptions = Vertex::getAttributeDescriptions();
     instance.shader_settings.input_attribute_descriptions = attribute_descriptions.data();
     instance.shader_settings.input_attribute_descriptions_count = attribute_descriptions.size();
-    instance.shader_settings.uniform_data_size = sizeof(UniformData);
+
+    instance.shader_settings.uniform_bindings.emplace_back();
+    auto& binding = instance.shader_settings.uniform_bindings.back();
+    binding.stage_flags = VK_SHADER_STAGE_VERTEX_BIT;
+    binding.uniform_data_size = sizeof(UniformData);
 
     instance.command_buffer_callback = [&vertex_buffer, &index_buffer](const VulkanWrapper::Pipeline& pipeline, const size_t i, const VkCommandBuffer command_buffer) {
         VkBuffer vertexBuffers[] = { vertex_buffer.handle };
@@ -25,6 +32,17 @@ int main()
         vkCmdBindDescriptorSets(command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline.pipeline_layout, 0, 1, &pipeline.descriptor_sets[i], 0, nullptr);
 
         vkCmdDrawIndexed(command_buffer, static_cast<uint32_t>(index_buffer.count), 1, 0, 0, 0);
+    };
+
+    instance.update_uniforms_callback = [&swapchain = instance.swapchain](Buffer& buffer, VkDevice logical_device)
+    {
+        UniformData uniform_data{};
+        uniform_data.model = glm::mat4(1.0f);
+        uniform_data.view = glm::lookAt(glm::vec3(2.0f, 2.0f, 2.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+        uniform_data.proj = glm::perspective(glm::radians(45.0f), swapchain.extent.width / (float)swapchain.extent.height, 0.1f, 10.0f);
+        uniform_data.proj[1][1] *= -1; // correction of inverted Y in OpenGL
+
+        uploadData(buffer, logical_device, &uniform_data);
     };
 
     instance.init();

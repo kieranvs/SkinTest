@@ -4,18 +4,27 @@
 #include <GLFW/glfw3.h>
 
 #include <string>
+#include <vector>
 
 namespace VulkanWrapper
 {
+    struct UniformBufferBinding
+    {
+        VkDescriptorType descriptor_type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+        VkShaderStageFlags stage_flags;
+        VkDeviceSize uniform_data_size;
+    };
+
     struct ShaderSettings
     {
         const char* vert_addr;
         const char* frag_addr;
+
         VkVertexInputBindingDescription binding_description;
         const VkVertexInputAttributeDescription* input_attribute_descriptions;
         uint32_t input_attribute_descriptions_count;
 
-        VkDeviceSize uniform_data_size;
+        std::vector<UniformBufferBinding> uniform_bindings;
     };
     
     struct Shader
