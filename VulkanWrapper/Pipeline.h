@@ -7,6 +7,7 @@
 #include "VulkanWrapper/Buffer.h"
 #include "VulkanWrapper/DeviceManager.h"
 #include "VulkanWrapper/Swapchain.h"
+#include "VulkanWrapper/Shader.h"
 
 namespace VulkanWrapper
 {
@@ -28,7 +29,7 @@ namespace VulkanWrapper
 
         std::vector<VkFramebuffer> framebuffers;
 
-        void init(const DeviceManager& device_manager, const Swapchain& swapchain, VkDeviceSize uniform_size);
+        void init(const DeviceManager& device_manager, const Swapchain& swapchain, const ShaderSettings& shader_settings);
         void deinit(const DeviceManager& device_manager);
     };
 }

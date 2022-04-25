@@ -156,7 +156,8 @@ void VulkanInstance::init()
 
     device_manager.init(instance, surface);
     swapchain.init(device_manager, window, surface);
-    pipeline.init(device_manager, swapchain, sizeof(UniformData));
+
+    pipeline.init(device_manager, swapchain, shader_settings);
 
     // Create sync objects
     {
@@ -369,7 +370,7 @@ void VulkanInstance::recreateSwapChain()
     device_manager.surface_presentModes = swapchain_support.present_modes;
 
     swapchain.init(device_manager, window, surface);
-    pipeline.init(device_manager, swapchain, sizeof(UniformData));
+    pipeline.init(device_manager, swapchain, shader_settings);
 
     createCommandBuffers();
 }

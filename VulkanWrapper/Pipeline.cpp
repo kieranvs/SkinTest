@@ -3,14 +3,12 @@
 #include "Shader.h"
 #include "Log.h"
 
-#include "../Vertex.h"
-
 #include <array>
 #include <stdexcept>
 
 namespace VulkanWrapper
 {
-    void Pipeline::init(const DeviceManager& device_manager, const Swapchain& swapchain, VkDeviceSize uniform_size)
+    void Pipeline::init(const DeviceManager& device_manager, const Swapchain& swapchain, const ShaderSettings& shader_settings)
     {
         // Render pass
         {
@@ -141,7 +139,7 @@ namespace VulkanWrapper
 
             for (auto& buffer : uniform_buffers)
             {
-                buffer.init(device_manager.physicalDevice, device_manager.logicalDevice, uniform_size, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+                buffer.init(device_manager.physicalDevice, device_manager.logicalDevice, shader_settings.uniform_data_size, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
             }
         }
 
@@ -163,7 +161,7 @@ namespace VulkanWrapper
                 VkDescriptorBufferInfo bufferInfo{};
                 bufferInfo.buffer = uniform_buffers[i].handle;
                 bufferInfo.offset = 0;
-                bufferInfo.range = uniform_size;
+                bufferInfo.range = shader_settings.uniform_data_size;
 
                 // VkDescriptorImageInfo imageInfo{};
                 // imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
@@ -196,19 +194,17 @@ namespace VulkanWrapper
         {
             Shader vert_shader;
             Shader frag_shader;
-            vert_shader.init("../Shaders/vert.spv", Shader::Type::Vertex, device_manager.logicalDevice);
-            frag_shader.init("../Shaders/frag.spv", Shader::Type::Fragment, device_manager.logicalDevice);
+            vert_shader.init(shader_settings.vert_addr, Shader::Type::Vertex, device_manager.logicalDevice);
+            frag_shader.init(shader_settings.frag_addr, Shader::Type::Fragment, device_manager.logicalDevice);
 
             VkPipelineShaderStageCreateInfo shaderStages[] = { vert_shader.create_info, frag_shader.create_info };
 
             VkPipelineVertexInputStateCreateInfo vertexInputInfo{};
             vertexInputInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
-            const auto bindingDescription = Vertex::getBindingDescription();
-            const auto attributeDescriptions = Vertex::getAttributeDescriptions();
             vertexInputInfo.vertexBindingDescriptionCount = 1;
-            vertexInputInfo.pVertexBindingDescriptions = &bindingDescription;
-            vertexInputInfo.vertexAttributeDescriptionCount = static_cast<uint32_t>(attributeDescriptions.size());
-            vertexInputInfo.pVertexAttributeDescriptions = attributeDescriptions.data();
+            vertexInputInfo.pVertexBindingDescriptions = &shader_settings.binding_description;
+            vertexInputInfo.vertexAttributeDescriptionCount = shader_settings.input_attribute_descriptions_count;
+            vertexInputInfo.pVertexAttributeDescriptions = shader_settings.input_attribute_descriptions;
 
             VkPipelineInputAssemblyStateCreateInfo inputAssembly{};
             inputAssembly.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;

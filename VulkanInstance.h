@@ -2,8 +2,8 @@
 
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
+#include <glm/glm.hpp>
 
-#include "Vertex.h"
 #include "VulkanWrapper/Image.h"
 #include "VulkanWrapper/Buffer.h"
 #include "VulkanWrapper/CommandBuffer.h"
@@ -45,6 +45,8 @@ struct VulkanInstance
     std::vector<VkFence> image_to_frame_fences; // Per swapchain image
 
     std::function<void(const VulkanWrapper::Pipeline& pipeline, const size_t i, const VkCommandBuffer command_buffer )> command_buffer_callback;
+
+    ShaderSettings shader_settings;
 
     void init();
     void deinit();

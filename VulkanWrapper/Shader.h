@@ -7,6 +7,17 @@
 
 namespace VulkanWrapper
 {
+    struct ShaderSettings
+    {
+        const char* vert_addr;
+        const char* frag_addr;
+        VkVertexInputBindingDescription binding_description;
+        const VkVertexInputAttributeDescription* input_attribute_descriptions;
+        uint32_t input_attribute_descriptions_count;
+
+        VkDeviceSize uniform_data_size;
+    };
+    
     struct Shader
     {
         enum class Type {
