@@ -53,29 +53,23 @@ if (WIN32)
 endif (WIN32)
 
 # ======== SkinTest ========
+file(GLOB_RECURSE VULKAN_WRAPPER
+    "VulkanWrapper/*.cpp"
+    "VulkanWrapper/*.h"
+)
 add_executable(
 	skin_test
 	Source.cpp
 	VulkanInstance.h
 	VulkanInstance.cpp
 	Vertex.h
-	VulkanWrapper/Buffer.h
-	VulkanWrapper/Buffer.cpp
-	VulkanWrapper/CommandBuffer.h
-	VulkanWrapper/CommandBuffer.cpp
-	VulkanWrapper/DeviceManager.h
-	VulkanWrapper/DeviceManager.cpp
-	VulkanWrapper/Image.h
-	VulkanWrapper/Image.cpp
-	VulkanWrapper/Log.h
-	VulkanWrapper/Pipeline.h
-	VulkanWrapper/Pipeline.cpp
-	VulkanWrapper/Shader.h
-	VulkanWrapper/Shader.cpp
-	VulkanWrapper/Swapchain.h
-	VulkanWrapper/Swapchain.cpp
+	${VULKAN_WRAPPER}
 	Shaders/shader.frag
 	Shaders/shader.vert
 )
+
 target_include_directories(skin_test PRIVATE . dependencies ${Vulkan_INCLUDE_DIRS})
 target_link_libraries(skin_test PRIVATE Vulkan::Vulkan glfw glm)
+
+source_group("VulkanWrapper" FILES ${VULKAN_WRAPPER})
+
