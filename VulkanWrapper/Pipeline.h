@@ -8,6 +8,7 @@
 #include "VulkanWrapper/DeviceManager.h"
 #include "VulkanWrapper/Swapchain.h"
 #include "VulkanWrapper/Shader.h"
+#include "VulkanWrapper/DescriptorPool.h"
 
 namespace VulkanWrapper
 {
@@ -16,7 +17,7 @@ namespace VulkanWrapper
         VkRenderPass render_pass;
 
         VkDescriptorSetLayout descriptor_set_layout;
-        VkDescriptorPool descriptor_pool;
+        DescriptorPool descriptor_pool;
         std::vector<VkDescriptorSet> descriptor_sets;
         
         VkPipeline graphics_pipeline;

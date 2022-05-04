@@ -88,7 +88,10 @@ namespace VulkanWrapper
                 log_error("Failed to create render pass");
         }
 
-        // create descriptor set
+        // create descriptor pool
+        descriptor_pool.init(device_manager.logicalDevice, swapchain.images.size(), 0, swapchain.images.size());
+
+        // create descriptor set layout for uniform buffer
         {
             std::vector<VkDescriptorSetLayoutBinding> bindings;
             for (uint32_t binding = 0; binding < shader_settings.uniform_bindings.size(); binding++)
@@ -112,36 +115,16 @@ namespace VulkanWrapper
                 throw std::runtime_error("failed to create descriptor set layout");
         }
 
-        // create descriptor pool
-        {
-            std::array<VkDescriptorPoolSize, 1> poolSizes{};
-            poolSizes[0].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-            poolSizes[0].descriptorCount = static_cast<uint32_t>(swapchain.images.size());
-            // poolSizes[1].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-            // poolSizes[1].descriptorCount = static_cast<uint32_t>(swapchain.swapChainImages.size());
-
-            VkDescriptorPoolCreateInfo poolInfo{};
-            poolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
-            poolInfo.poolSizeCount = static_cast<uint32_t>(poolSizes.size());
-            poolInfo.pPoolSizes = poolSizes.data();
-            poolInfo.maxSets = static_cast<uint32_t>(swapchain.images.size());
-
-            if (vkCreateDescriptorPool(device_manager.logicalDevice, &poolInfo, nullptr, &descriptor_pool) != VK_SUCCESS)
-                log_error("failed to create descriptor pool");
-        }
-
-        // Add up size of uniform buffers
-        VkDeviceSize uniform_data_size = 0;
-        for (const auto& binding : shader_settings.uniform_bindings)
-        {
-            if (binding.descriptor_type == VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER)
-                uniform_data_size += binding.uniform_data_size;
-        }
-
         // Create uniform buffers
         {
-            uniform_buffers.resize(swapchain.images.size());
+            VkDeviceSize uniform_data_size = 0;
+            for (const auto& binding : shader_settings.uniform_bindings)
+            {
+                if (binding.descriptor_type == VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER)
+                    uniform_data_size += binding.uniform_data_size;
+            }
 
+            uniform_buffers.resize(swapchain.images.size());
             for (auto& buffer : uniform_buffers)
             {
                 buffer.init(device_manager.physicalDevice, device_manager.logicalDevice, uniform_data_size, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
@@ -151,53 +134,7 @@ namespace VulkanWrapper
         // create descriptor sets
         {
             std::vector<VkDescriptorSetLayout> layouts(swapchain.images.size(), descriptor_set_layout);
-            VkDescriptorSetAllocateInfo allocInfo{};
-            allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
-            allocInfo.descriptorPool = descriptor_pool;
-            allocInfo.descriptorSetCount = static_cast<uint32_t>(swapchain.images.size());
-            allocInfo.pSetLayouts = layouts.data();
-
-            descriptor_sets.resize(swapchain.images.size());
-            if (vkAllocateDescriptorSets(device_manager.logicalDevice, &allocInfo, descriptor_sets.data()) != VK_SUCCESS)
-                log_error("failed to allocate descriptor sets!");
-
-            std::vector<VkDescriptorBufferInfo> buffer_infos(shader_settings.uniform_bindings.size());
-            std::vector<VkWriteDescriptorSet> descriptor_writes(shader_settings.uniform_bindings.size());
-
-            for (size_t image_index = 0; image_index < swapchain.images.size(); ++image_index)
-            {
-                VkDeviceSize current_offset = 0;
-                uint32_t current_binding = 0;
-
-                for (uint32_t current_binding = 0; current_binding < shader_settings.uniform_bindings.size(); current_binding++)
-                {
-                    auto& binding = shader_settings.uniform_bindings[current_binding];
-
-                    if (binding.descriptor_type == VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER)
-                    {
-                        auto& buffer_info = buffer_infos[current_binding];
-
-                        buffer_info.buffer = uniform_buffers[image_index].handle;
-                        buffer_info.offset = current_offset;
-                        buffer_info.range = binding.uniform_data_size;
-                        current_offset += binding.uniform_data_size;
-
-                        auto& descriptor_write = descriptor_writes[current_binding];
-
-                        descriptor_write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-                        descriptor_write.dstSet = descriptor_sets[image_index];
-                        descriptor_write.dstBinding = current_binding;
-                        descriptor_write.dstArrayElement = 0;
-                        descriptor_write.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-                        descriptor_write.descriptorCount = 1;
-                        descriptor_write.pBufferInfo = &buffer_info;
-                    }
-                    else
-                        log_error("Unsupported uniform binding type");
-                }
-
-                vkUpdateDescriptorSets(device_manager.logicalDevice, static_cast<uint32_t>(descriptor_writes.size()), descriptor_writes.data(), 0, nullptr);
-            }
+            descriptor_sets = descriptor_pool.createDescriptorSets(device_manager.logicalDevice, layouts, uniform_buffers, shader_settings.uniform_bindings);
         }
 
         // create graphics pipeline 
@@ -403,6 +340,6 @@ namespace VulkanWrapper
         vkDestroyRenderPass(device_manager.logicalDevice, render_pass, nullptr);
 
         vkDestroyDescriptorSetLayout(device_manager.logicalDevice, descriptor_set_layout, nullptr);
-        vkDestroyDescriptorPool(device_manager.logicalDevice, descriptor_pool, nullptr);
+        descriptor_pool.deinit(device_manager.logicalDevice);
     }
 }
