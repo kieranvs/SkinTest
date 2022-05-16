@@ -88,8 +88,36 @@ namespace VulkanWrapper
                 log_error("Failed to create render pass");
         }
 
+        uploadTextureData(device_manager, texture);
+
+        {
+            VkPhysicalDeviceProperties properties{};
+            vkGetPhysicalDeviceProperties(device_manager.physicalDevice, &properties);
+
+            VkSamplerCreateInfo samplerInfo{};
+            samplerInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
+            samplerInfo.magFilter = VK_FILTER_LINEAR;
+            samplerInfo.minFilter = VK_FILTER_LINEAR;
+            samplerInfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+            samplerInfo.addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+            samplerInfo.addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+            samplerInfo.anisotropyEnable = VK_TRUE;
+            samplerInfo.maxAnisotropy = properties.limits.maxSamplerAnisotropy;
+            samplerInfo.borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK;
+            samplerInfo.unnormalizedCoordinates = VK_FALSE;
+            samplerInfo.compareEnable = VK_FALSE;
+            samplerInfo.compareOp = VK_COMPARE_OP_ALWAYS;
+            samplerInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
+            samplerInfo.mipLodBias = 0.0f;
+            samplerInfo.minLod = 0.0f;
+            samplerInfo.maxLod = static_cast<float>(texture.mip_map_levels);
+
+            if (vkCreateSampler(device_manager.logicalDevice, &samplerInfo, nullptr, &sampler) != VK_SUCCESS)
+                printf("failed to create texture sampler!");
+        }
+
         // create descriptor pool
-        descriptor_pool.init(device_manager.logicalDevice, swapchain.images.size(), 0, swapchain.images.size());
+        descriptor_pool.init(device_manager.logicalDevice, swapchain.images.size(), swapchain.images.size(), swapchain.images.size());
 
         // create descriptor set layout for uniform buffer
         {
@@ -134,7 +162,7 @@ namespace VulkanWrapper
         // create descriptor sets
         {
             std::vector<VkDescriptorSetLayout> layouts(swapchain.images.size(), descriptor_set_layout);
-            descriptor_sets = descriptor_pool.createDescriptorSets(device_manager.logicalDevice, layouts, uniform_buffers, shader_settings.uniform_bindings);
+            descriptor_sets = descriptor_pool.createDescriptorSets(device_manager.logicalDevice, layouts, uniform_buffers, texture, sampler, shader_settings.uniform_bindings);
         }
 
         // create graphics pipeline 
@@ -285,7 +313,7 @@ namespace VulkanWrapper
                 VK_IMAGE_TILING_OPTIMAL,
                 VK_IMAGE_USAGE_TRANSIENT_ATTACHMENT_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT
             );
-            colour_image.view = createImageView(device_manager.logicalDevice, colour_image.handle, swapchain.image_format, VK_IMAGE_ASPECT_COLOR_BIT, 1);
+            createImageView(device_manager.logicalDevice, colour_image, VK_IMAGE_ASPECT_COLOR_BIT);
             
             depth_image.createImage(
                 device_manager.logicalDevice,
@@ -298,16 +326,16 @@ namespace VulkanWrapper
                 VK_IMAGE_TILING_OPTIMAL,
                 VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT
             );
-            depth_image.view = createImageView(device_manager.logicalDevice, depth_image.handle, device_manager.depth_format, VK_IMAGE_ASPECT_DEPTH_BIT, 1);
+            createImageView(device_manager.logicalDevice, depth_image, VK_IMAGE_ASPECT_DEPTH_BIT);
         }
 
         // create framebuffers
         {
-            framebuffers.resize(swapchain.image_views.size());
+            framebuffers.resize(swapchain.images.size());
 
-            for (size_t i{}; i < swapchain.image_views.size(); ++i)
+            for (size_t i = 0; i < swapchain.images.size(); ++i)
             {
-                std::array<VkImageView, 3> attachments = { colour_image.view, depth_image.view, swapchain.image_views[i] };
+                std::array<VkImageView, 3> attachments = { colour_image.view, depth_image.view, swapchain.images[i].view };
 
                 VkFramebufferCreateInfo framebufferInfo{};
                 framebufferInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
@@ -326,6 +354,9 @@ namespace VulkanWrapper
 
     void Pipeline::deinit(const DeviceManager& device_manager)
     {
+        texture.deinit(device_manager.logicalDevice);
+        vkDestroySampler(device_manager.logicalDevice, sampler, nullptr);
+
         for (auto& buffer : uniform_buffers)
             buffer.deinit(device_manager.logicalDevice);
 

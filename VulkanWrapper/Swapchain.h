@@ -4,6 +4,7 @@
 #include <GLFW/glfw3.h>
 
 #include "DeviceManager.h"
+#include "Image.h"
 
 namespace VulkanWrapper
 {
@@ -23,8 +24,7 @@ namespace VulkanWrapper
         VkExtent2D extent;
         VkSwapchainKHR handle;
 
-        std::vector<VkImage> images;
-        std::vector<VkImageView> image_views;
+        std::vector<Image> images;
         VkFormat image_format;
 
         void init(const DeviceManager& device_manager, GLFWwindow* window, VkSurfaceKHR surface);

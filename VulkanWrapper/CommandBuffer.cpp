@@ -5,7 +5,7 @@
 
 namespace VulkanWrapper
 {
-    void CommandBufferSet::init(DeviceManager& device_manager, size_t num_buffers)
+    void CommandBufferSet::init(const DeviceManager& device_manager, size_t num_buffers)
     {
         handles.resize(num_buffers);
 
@@ -19,7 +19,7 @@ namespace VulkanWrapper
             log_error("failed to allocate command buffers!");
     }
 
-    void CommandBufferSet::deinit(DeviceManager& device_manager)
+    void CommandBufferSet::deinit(const DeviceManager& device_manager)
     {
         vkFreeCommandBuffers(device_manager.logicalDevice, device_manager.command_pool, static_cast<uint32_t>(handles.size()), handles.data());
     }
@@ -50,13 +50,13 @@ namespace VulkanWrapper
         active_buffer.reset();
     }
 
-    void SingleTimeCommandBuffer::begin(DeviceManager& device_manager)
+    void SingleTimeCommandBuffer::begin(const DeviceManager& device_manager)
     {
         command_buffer_set.init(device_manager, 1);
         command_buffer_set.begin(0, VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
     }
 
-    void SingleTimeCommandBuffer::end(DeviceManager& device_manager)
+    void SingleTimeCommandBuffer::end(const DeviceManager& device_manager)
     {
         command_buffer_set.end();
 

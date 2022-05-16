@@ -1,11 +1,12 @@
-
 #include "DescriptorPool.h"
 
+#include "Image.h"
 #include "Log.h"
 
 #include <array>
 
-namespace VulkanWrapper {
+namespace VulkanWrapper
+{
 	void DescriptorPool::init(VkDevice logical_device, uint32_t uniform_buffer_count, uint32_t sampler_count, uint32_t set_count)
 	{
         std::array<VkDescriptorPoolSize, 2> poolSizes{};
@@ -33,7 +34,7 @@ namespace VulkanWrapper {
             log_error("failed to create descriptor pool");
 	}
 
-    std::vector<VkDescriptorSet> DescriptorPool::createDescriptorSets(VkDevice logical_device, const std::vector<VkDescriptorSetLayout>& layouts, const std::vector<Buffer>& uniform_buffers, const std::vector<VulkanWrapper::UniformBufferBinding>& uniform_buffer_bindings)
+    std::vector<VkDescriptorSet> DescriptorPool::createDescriptorSets(VkDevice logical_device, const std::vector<VkDescriptorSetLayout>& layouts, const std::vector<Buffer>& uniform_buffers, Image& texture, VkSampler sampler, const std::vector<VulkanWrapper::UniformBufferBinding>& uniform_buffer_bindings)
     {
         const uint32_t descriptor_set_count = layouts.size();
 
@@ -48,6 +49,7 @@ namespace VulkanWrapper {
             log_error("failed to allocate descriptor sets!");
 
         std::vector<VkDescriptorBufferInfo> buffer_infos(uniform_buffer_bindings.size());
+        std::vector<VkDescriptorImageInfo> image_infos(uniform_buffer_bindings.size());
         std::vector<VkWriteDescriptorSet> descriptor_writes(uniform_buffer_bindings.size());
 
         for (size_t descriptor_set_index = 0; descriptor_set_index < descriptor_set_count; ++descriptor_set_index)
@@ -59,6 +61,14 @@ namespace VulkanWrapper {
             {
                 auto& binding = uniform_buffer_bindings[current_binding];
 
+                auto& descriptor_write = descriptor_writes[current_binding];
+                descriptor_write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+                descriptor_write.dstSet = descriptor_sets[descriptor_set_index];
+                descriptor_write.dstBinding = current_binding;
+                descriptor_write.dstArrayElement = 0;
+                descriptor_write.descriptorType = binding.descriptor_type;
+                descriptor_write.descriptorCount = 1;
+
                 if (binding.descriptor_type == VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER)
                 {
                     auto& buffer_info = buffer_infos[current_binding];
@@ -68,15 +78,17 @@ namespace VulkanWrapper {
                     buffer_info.range = binding.uniform_data_size;
                     current_offset += binding.uniform_data_size;
 
-                    auto& descriptor_write = descriptor_writes[current_binding];
-
-                    descriptor_write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-                    descriptor_write.dstSet = descriptor_sets[descriptor_set_index];
-                    descriptor_write.dstBinding = current_binding;
-                    descriptor_write.dstArrayElement = 0;
-                    descriptor_write.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-                    descriptor_write.descriptorCount = 1;
                     descriptor_write.pBufferInfo = &buffer_info;
+                }
+                else if (binding.descriptor_type == VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER)
+                {
+                    auto& image_info = image_infos[current_binding];
+
+                    image_info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+                    image_info.imageView = texture.view;
+                    image_info.sampler = sampler;
+
+                    descriptor_write.pImageInfo = &image_info;
                 }
                 else
                     log_error("Unsupported uniform binding type");

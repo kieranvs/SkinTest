@@ -1,4 +1,5 @@
 #include "Buffer.h"
+#include "Image.h"
 #include "Log.h"
 #include "CommandBuffer.h"
 
@@ -65,6 +66,29 @@ namespace VulkanWrapper
         copyRegion.dstOffset = 0;
         copyRegion.size = src_buffer.size_bytes;
         vkCmdCopyBuffer(command_buffer.getHandle(), src_buffer.handle, dst_buffer.handle, 1, &copyRegion);
+
+        command_buffer.end(device_manager);
+    }
+
+    void copyBufferToImage(const DeviceManager& device_manager, Buffer& buffer, Image& image)
+    {
+        SingleTimeCommandBuffer command_buffer;
+        command_buffer.begin(device_manager);
+
+        VkBufferImageCopy region{};
+        region.bufferOffset = 0;
+        region.bufferRowLength = 0;
+        region.bufferImageHeight = 0;
+
+        region.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+        region.imageSubresource.mipLevel = 0;
+        region.imageSubresource.baseArrayLayer = 0;
+        region.imageSubresource.layerCount = 1;
+
+        region.imageOffset = { 0, 0, 0 };
+        region.imageExtent = { image.width, image.height, 1 };
+
+        vkCmdCopyBufferToImage(command_buffer.getHandle(), buffer.handle, image.handle, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
 
         command_buffer.end(device_manager);
     }

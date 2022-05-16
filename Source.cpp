@@ -8,6 +8,7 @@ int main()
 {
     VulkanWrapper::Buffer vertex_buffer;
     VulkanWrapper::Buffer index_buffer;
+    VulkanWrapper::Image texture;
 
     VulkanInstance instance;
     instance.shader_settings.vert_addr = "../Shaders/vert.spv";
@@ -17,10 +18,22 @@ int main()
     instance.shader_settings.input_attribute_descriptions = attribute_descriptions.data();
     instance.shader_settings.input_attribute_descriptions_count = attribute_descriptions.size();
 
-    instance.shader_settings.uniform_bindings.emplace_back();
-    auto& binding = instance.shader_settings.uniform_bindings.back();
-    binding.stage_flags = VK_SHADER_STAGE_VERTEX_BIT;
-    binding.uniform_data_size = sizeof(UniformData);
+    // Proj view model mat
+    {
+        instance.shader_settings.uniform_bindings.emplace_back();
+        auto& binding = instance.shader_settings.uniform_bindings.back();
+        binding.stage_flags = VK_SHADER_STAGE_VERTEX_BIT;
+        binding.uniform_data_size = sizeof(UniformData);
+        binding.descriptor_type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    }
+
+    // Texture sampler
+    {
+        instance.shader_settings.uniform_bindings.emplace_back();
+        auto& binding = instance.shader_settings.uniform_bindings.back();
+        binding.stage_flags = VK_SHADER_STAGE_FRAGMENT_BIT;
+        binding.descriptor_type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    }
 
     instance.command_buffer_callback = [&vertex_buffer, &index_buffer](const VulkanWrapper::Pipeline& pipeline, const size_t i, const VkCommandBuffer command_buffer) {
         VkBuffer vertexBuffers[] = { vertex_buffer.handle };

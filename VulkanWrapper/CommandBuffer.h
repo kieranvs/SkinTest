@@ -18,8 +18,8 @@ namespace VulkanWrapper
 
         size_t size() { return handles.size(); }
 
-        void init(DeviceManager& device_manager, size_t num_buffers);
-        void deinit(DeviceManager& device_manager);
+        void init(const DeviceManager& device_manager, size_t num_buffers);
+        void deinit(const DeviceManager& device_manager);
 
         void begin(size_t buffer_index, VkCommandBufferUsageFlags flags);
         void end();
@@ -31,7 +31,7 @@ namespace VulkanWrapper
 
         VkCommandBuffer& getHandle() { return command_buffer_set[0]; }
 
-        void begin(DeviceManager& device_manager);
-        void end(DeviceManager& device_manager);
+        void begin(const DeviceManager& device_manager);
+        void end(const DeviceManager& device_manager);
     };
 }

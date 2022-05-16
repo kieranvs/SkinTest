@@ -9,6 +9,8 @@
 
 namespace VulkanWrapper
 {
+    struct Image;
+
     struct Buffer
     {
         VkBuffer handle;
@@ -22,6 +24,8 @@ namespace VulkanWrapper
 
     void copyBuffer(DeviceManager& device_manager, Buffer& src_buffer, Buffer& dst_buffer);
     void uploadData(Buffer& buffer, VkDevice logical_device, const void* data);
+
+    void copyBufferToImage(const DeviceManager& device_manager, Buffer& buffer, Image& image);
 
     template<typename T>
     void uploadBufferData(DeviceManager& device_manager, Buffer& buffer, const std::vector<T>& data, VkBufferUsageFlagBits usage)

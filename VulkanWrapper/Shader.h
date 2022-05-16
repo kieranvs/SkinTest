@@ -10,7 +10,7 @@ namespace VulkanWrapper
 {
     struct UniformBufferBinding
     {
-        VkDescriptorType descriptor_type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+        VkDescriptorType descriptor_type;
         VkShaderStageFlags stage_flags;
         VkDeviceSize uniform_data_size;
     };

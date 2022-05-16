@@ -27,6 +27,8 @@ namespace VulkanWrapper
         Image depth_image;
 
         std::vector<Buffer> uniform_buffers;
+        Image texture;
+        VkSampler sampler;
 
         std::vector<VkFramebuffer> framebuffers;
 

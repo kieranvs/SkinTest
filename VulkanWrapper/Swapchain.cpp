@@ -1,6 +1,5 @@
 #include "Swapchain.h"
 #include "Log.h"
-#include "Image.h"
 
 #include <algorithm>
 
@@ -114,13 +113,20 @@ namespace VulkanWrapper
             log_error("Failed to create swapchain!");
 
         vkGetSwapchainImagesKHR(device_manager.logicalDevice, handle, &image_count, nullptr);
-        images.resize(image_count);
-        vkGetSwapchainImagesKHR(device_manager.logicalDevice, handle, &image_count, images.data());
 
-        image_views.resize(image_count);
+        std::vector<VkImage> temp_images;
+        temp_images.resize(image_count);
+        vkGetSwapchainImagesKHR(device_manager.logicalDevice, handle, &image_count, temp_images.data());
+
+        images.resize(image_count);
         for (size_t i = 0; i < image_count; i++)
         {
-            image_views[i] = createImageView(device_manager.logicalDevice, images[i], surfaceFormat.format, VK_IMAGE_ASPECT_COLOR_BIT, 1);
+            images[i].handle = temp_images[i];
+            images[i].width = extent.width;
+            images[i].height = extent.height;
+            images[i].mip_map_levels = 1;
+            images[i].format = surfaceFormat.format;
+            createImageView(device_manager.logicalDevice, images[i], VK_IMAGE_ASPECT_COLOR_BIT);
         }
 
         image_format = surfaceFormat.format;
@@ -128,8 +134,8 @@ namespace VulkanWrapper
 
     void Swapchain::deinit(const DeviceManager& device_manager)
     {
-        for (auto imageView : image_views)
-            vkDestroyImageView(device_manager.logicalDevice, imageView, nullptr);
+        for (auto& image : images)
+            vkDestroyImageView(device_manager.logicalDevice, image.view, nullptr);
 
         vkDestroySwapchainKHR(device_manager.logicalDevice, handle, nullptr);
     }

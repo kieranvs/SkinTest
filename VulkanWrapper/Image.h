@@ -5,11 +5,18 @@
 
 namespace VulkanWrapper
 {
+    struct DeviceManager;
+
     struct Image
     {
         VkImage handle;
         VkDeviceMemory memory;
         VkImageView view;
+
+        uint32_t width;
+        uint32_t height;
+        uint32_t mip_map_levels;
+        VkFormat format;
 
         void createImage(
             VkDevice logical_device,
@@ -25,5 +32,7 @@ namespace VulkanWrapper
         void deinit(VkDevice logical_device);
     };
 
-    VkImageView createImageView(VkDevice logical_device, VkImage image_handle, VkFormat format, VkImageAspectFlags aspect_flags, uint32_t mip_map_levels );
+    void createImageView(VkDevice logical_device, Image& image, VkImageAspectFlags aspect_flags);
+
+    void uploadTextureData(const DeviceManager& device_manager, Image& image);
 }
