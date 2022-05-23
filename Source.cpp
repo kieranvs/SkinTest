@@ -8,7 +8,6 @@ int main()
 {
     VulkanWrapper::Buffer vertex_buffer;
     VulkanWrapper::Buffer index_buffer;
-    VulkanWrapper::Image texture;
 
     VulkanInstance instance;
     instance.shader_settings.vert_addr = "../Shaders/vert.spv";
@@ -20,8 +19,7 @@ int main()
 
     // Proj view model mat
     {
-        instance.shader_settings.uniform_bindings.emplace_back();
-        auto& binding = instance.shader_settings.uniform_bindings.back();
+        auto& binding = instance.shader_settings.uniform_bindings.emplace_back();
         binding.stage_flags = VK_SHADER_STAGE_VERTEX_BIT;
         binding.uniform_data_size = sizeof(UniformData);
         binding.descriptor_type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
@@ -29,8 +27,7 @@ int main()
 
     // Texture sampler
     {
-        instance.shader_settings.uniform_bindings.emplace_back();
-        auto& binding = instance.shader_settings.uniform_bindings.back();
+        auto& binding = instance.shader_settings.uniform_bindings.emplace_back();
         binding.stage_flags = VK_SHADER_STAGE_FRAGMENT_BIT;
         binding.descriptor_type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
     }
