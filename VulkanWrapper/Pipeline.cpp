@@ -10,6 +10,8 @@ namespace VulkanWrapper
 {
     void Pipeline::init(const DeviceManager& device_manager, const Swapchain& swapchain, const ShaderSettings& shader_settings)
     {
+        this->shader_settings = shader_settings;
+
         // Render pass
         {
             std::array<VkAttachmentDescription, 3> attachment_descriptions = {};
@@ -88,7 +90,7 @@ namespace VulkanWrapper
                 log_error("Failed to create render pass");
         }
 
-        std::string path = "../Textures/test_grid.jpeg";
+        std::string path = "../Textures/test_grid.png";
         texture.init(device_manager, path);
         
         // create descriptor pool
@@ -325,6 +327,11 @@ namespace VulkanWrapper
                     log_error("Failed to create framebuffer");
             }
         }
+    }
+
+    void Pipeline::reinit(const DeviceManager& device_manager, const Swapchain& swapchain)
+    {
+        init(device_manager, swapchain, shader_settings);
     }
 
     void Pipeline::deinit(const DeviceManager& device_manager)

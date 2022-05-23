@@ -26,12 +26,15 @@ namespace VulkanWrapper
         Image colour_image;
         Image depth_image;
 
+        ShaderSettings shader_settings;
+
         std::vector<Buffer> uniform_buffers;
         Texture texture;
 
         std::vector<VkFramebuffer> framebuffers;
 
         void init(const DeviceManager& device_manager, const Swapchain& swapchain, const ShaderSettings& shader_settings);
+        void reinit(const DeviceManager& device_manager, const Swapchain& swapchain);
         void deinit(const DeviceManager& device_manager);
     };
 }

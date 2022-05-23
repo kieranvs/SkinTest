@@ -40,8 +40,6 @@ struct VulkanInstance
     std::function<void(const VulkanWrapper::Pipeline& pipeline, const size_t i, const VkCommandBuffer command_buffer )> command_buffer_callback;
     std::function<void(VulkanWrapper::Buffer& buffer, VkDevice logical_device)> update_uniforms_callback;
 
-    ShaderSettings shader_settings;
-
     void init();
     void deinit();
 

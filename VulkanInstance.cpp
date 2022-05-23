@@ -155,8 +155,6 @@ void VulkanInstance::init()
     device_manager.init(instance, surface);
     swapchain.init(device_manager, window, surface);
 
-    pipeline.init(device_manager, swapchain, shader_settings);
-
     // Create sync objects
     {
         image_available_semaphores.resize(MAX_FRAMES_IN_FLIGHT);
@@ -360,7 +358,7 @@ void VulkanInstance::recreateSwapChain()
     device_manager.surface_presentModes = swapchain_support.present_modes;
 
     swapchain.init(device_manager, window, surface);
-    pipeline.init(device_manager, swapchain, shader_settings);
+    pipeline.reinit(device_manager, swapchain);
 
     createCommandBuffers();
 }

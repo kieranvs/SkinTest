@@ -8,29 +8,8 @@ int main()
 {
     VulkanWrapper::Buffer vertex_buffer;
     VulkanWrapper::Buffer index_buffer;
-
+    
     VulkanInstance instance;
-    instance.shader_settings.vert_addr = "../Shaders/vert.spv";
-    instance.shader_settings.frag_addr = "../Shaders/frag.spv";
-    instance.shader_settings.binding_description = Vertex::getBindingDescription();
-    const auto& attribute_descriptions = Vertex::getAttributeDescriptions();
-    instance.shader_settings.input_attribute_descriptions = attribute_descriptions.data();
-    instance.shader_settings.input_attribute_descriptions_count = attribute_descriptions.size();
-
-    // Proj view model mat
-    {
-        auto& binding = instance.shader_settings.uniform_bindings.emplace_back();
-        binding.stage_flags = VK_SHADER_STAGE_VERTEX_BIT;
-        binding.uniform_data_size = sizeof(UniformData);
-        binding.descriptor_type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-    }
-
-    // Texture sampler
-    {
-        auto& binding = instance.shader_settings.uniform_bindings.emplace_back();
-        binding.stage_flags = VK_SHADER_STAGE_FRAGMENT_BIT;
-        binding.descriptor_type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    }
 
     instance.command_buffer_callback = [&vertex_buffer, &index_buffer](const VulkanWrapper::Pipeline& pipeline, const size_t i, const VkCommandBuffer command_buffer) {
         VkBuffer vertexBuffers[] = { vertex_buffer.handle };
@@ -56,6 +35,31 @@ int main()
     };
 
     instance.init();
+
+    ShaderSettings shader_settings;
+    shader_settings.vert_addr = "../Shaders/vert.spv";
+    shader_settings.frag_addr = "../Shaders/frag.spv";
+    shader_settings.binding_description = Vertex::getBindingDescription();
+    const auto& attribute_descriptions = Vertex::getAttributeDescriptions();
+    shader_settings.input_attribute_descriptions = attribute_descriptions.data();
+    shader_settings.input_attribute_descriptions_count = attribute_descriptions.size();
+
+    // Proj view model mat
+    {
+        auto& binding = shader_settings.uniform_bindings.emplace_back();
+        binding.stage_flags = VK_SHADER_STAGE_VERTEX_BIT;
+        binding.uniform_data_size = sizeof(UniformData);
+        binding.descriptor_type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    }
+
+    // Texture sampler
+    {
+        auto& binding = shader_settings.uniform_bindings.emplace_back();
+        binding.stage_flags = VK_SHADER_STAGE_FRAGMENT_BIT;
+        binding.descriptor_type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    }
+
+    instance.pipeline.init(instance.device_manager, instance.swapchain, shader_settings);
 
     std::vector<Vertex> verts{};
     std::vector<uint32_t> indices{0, 1, 2, 3, 2, 1};
