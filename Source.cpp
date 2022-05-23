@@ -63,9 +63,6 @@ int main()
     auto [verts, path] = loadModel("../Models/viking_room.obj", glm::mat4(1.0f));
 
     path = "../Textures/viking_room.png";
-    
-    printf("verts: %zu", verts.size());
-    printf(path.c_str());
 
     Texture texture;
     texture.init(instance.device_manager, path);
