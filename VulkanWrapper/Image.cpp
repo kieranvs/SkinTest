@@ -3,6 +3,8 @@
 #include "Buffer.h"
 #include "CommandBuffer.h"
 
+#include <stb/stb_image.h>
+
 namespace VulkanWrapper
 {
     static uint32_t findMemoryType(VkPhysicalDevice physical_device, uint32_t type_filter, VkMemoryPropertyFlags properties)
@@ -71,6 +73,43 @@ namespace VulkanWrapper
         vkDestroyImageView(logical_device, view, nullptr);
         vkDestroyImage(logical_device, handle, nullptr);
         vkFreeMemory(logical_device, memory, nullptr);
+    }
+
+    void Texture::init(const DeviceManager& device_manager, const std::string& texture_path)
+    {
+        uploadTextureData(device_manager, image, texture_path);
+
+        {
+            VkPhysicalDeviceProperties properties{};
+            vkGetPhysicalDeviceProperties(device_manager.physicalDevice, &properties);
+
+            VkSamplerCreateInfo samplerInfo{};
+            samplerInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
+            samplerInfo.magFilter = VK_FILTER_LINEAR;
+            samplerInfo.minFilter = VK_FILTER_LINEAR;
+            samplerInfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+            samplerInfo.addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+            samplerInfo.addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+            samplerInfo.anisotropyEnable = VK_TRUE;
+            samplerInfo.maxAnisotropy = properties.limits.maxSamplerAnisotropy;
+            samplerInfo.borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK;
+            samplerInfo.unnormalizedCoordinates = VK_FALSE;
+            samplerInfo.compareEnable = VK_FALSE;
+            samplerInfo.compareOp = VK_COMPARE_OP_ALWAYS;
+            samplerInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
+            samplerInfo.mipLodBias = 0.0f;
+            samplerInfo.minLod = 0.0f;
+            samplerInfo.maxLod = static_cast<float>(image.mip_map_levels);
+
+            if (vkCreateSampler(device_manager.logicalDevice, &samplerInfo, nullptr, &sampler) != VK_SUCCESS)
+                log_error("failed to create texture sampler!");
+        }
+    }
+
+    void Texture::deinit(VkDevice logical_device)
+    {
+        image.deinit(logical_device);
+        vkDestroySampler(logical_device, sampler, nullptr);
     }
 
     void createImageView(VkDevice logical_device, Image& image, VkImageAspectFlags aspect_flags)
@@ -151,17 +190,12 @@ namespace VulkanWrapper
         command_buffer.end(device_manager);
     }
 
-    void uploadTextureData(const DeviceManager& device_manager, Image& image)
+    void uploadTextureData(const DeviceManager& device_manager, Image& image, const std::string& texture_path)
     {
         int texWidth, texHeight, texChannels;
-        // stbi_uc* pixels = stbi_load(texture_path.c_str(), &texWidth, &texHeight, &texChannels, STBI_rgb_alpha);
+        stbi_uc* pixels = stbi_load(texture_path.c_str(), &texWidth, &texHeight, &texChannels, STBI_rgb_alpha);
 
-        texWidth = 1;
-        texHeight = 1;
-        texChannels = 1;
         uint32_t mipLevels = 1;
-
-        unsigned char pixels[4] = { 255, 0, 0, 255 };
 
         const VkDeviceSize imageSize = texWidth * texHeight * 4;
         // mipLevels = static_cast<uint32_t>(std::floor(std::log2(std::max(texWidth, texHeight)))) + 1;
@@ -170,7 +204,7 @@ namespace VulkanWrapper
         stagingBuffer.init(device_manager.physicalDevice, device_manager.logicalDevice, imageSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
         uploadData(stagingBuffer, device_manager.logicalDevice, pixels);
 
-        // stbi_image_free(pixels);
+        stbi_image_free(pixels);
 
         image.createImage(device_manager.logicalDevice, device_manager.physicalDevice, texWidth, texHeight, mipLevels, VK_SAMPLE_COUNT_1_BIT, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT);
 

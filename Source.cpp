@@ -48,7 +48,7 @@ int main()
     {
         UniformData uniform_data{};
         uniform_data.model = glm::mat4(1.0f);
-        uniform_data.view = glm::lookAt(glm::vec3(2.0f, 2.0f, 2.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+        uniform_data.view = glm::lookAt(glm::vec3(0.0f, 0.0f, 2.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
         uniform_data.proj = glm::perspective(glm::radians(45.0f), swapchain.extent.width / (float)swapchain.extent.height, 0.1f, 10.0f);
         uniform_data.proj[1][1] *= -1; // correction of inverted Y in OpenGL
 
@@ -58,14 +58,20 @@ int main()
     instance.init();
 
     std::vector<Vertex> verts{};
-    std::vector<uint32_t> indices{0, 1, 2};
-    verts.resize(3);
+    std::vector<uint32_t> indices{0, 1, 2, 3, 2, 1};
+    verts.resize(4);
     verts[0].pos = { -0.5, -0.5, 0.0 };
     verts[1].pos = { 0.5, -0.5, 0.0 };
-    verts[2].pos = { 0.0, 0.5, 0.0 };
+    verts[2].pos = { -0.5, 0.5, 0.0 };
+    verts[3].pos = { 0.5, 0.5, 0.0 };
     verts[0].colour = { 1.0, 0.0, 0.0 };
     verts[1].colour = { 0.0, 1.0, 0.0 };
     verts[2].colour = { 0.0, 0.0, 1.0 };
+    verts[3].colour = { 1.0, 0.0, 0.0 };
+    verts[0].texCoord = { 0, 1 };
+    verts[1].texCoord = { 1, 1 };
+    verts[2].texCoord = { 0, 0 };
+    verts[3].texCoord = { 1, 0 };
 
     uploadBufferData(instance.device_manager, vertex_buffer, verts, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT);
     uploadBufferData(instance.device_manager, index_buffer, indices, VK_BUFFER_USAGE_INDEX_BUFFER_BIT);

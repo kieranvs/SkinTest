@@ -34,7 +34,7 @@ namespace VulkanWrapper
             log_error("failed to create descriptor pool");
 	}
 
-    std::vector<VkDescriptorSet> DescriptorPool::createDescriptorSets(VkDevice logical_device, const std::vector<VkDescriptorSetLayout>& layouts, const std::vector<Buffer>& uniform_buffers, Image& texture, VkSampler sampler, const std::vector<VulkanWrapper::UniformBufferBinding>& uniform_buffer_bindings)
+    std::vector<VkDescriptorSet> DescriptorPool::createDescriptorSets(VkDevice logical_device, const std::vector<VkDescriptorSetLayout>& layouts, const std::vector<Buffer>& uniform_buffers, Texture& texture, const std::vector<VulkanWrapper::UniformBufferBinding>& uniform_buffer_bindings)
     {
         const uint32_t descriptor_set_count = layouts.size();
 
@@ -85,8 +85,8 @@ namespace VulkanWrapper
                     auto& image_info = image_infos[current_binding];
 
                     image_info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-                    image_info.imageView = texture.view;
-                    image_info.sampler = sampler;
+                    image_info.imageView = texture.image.view;
+                    image_info.sampler = texture.sampler;
 
                     descriptor_write.pImageInfo = &image_info;
                 }

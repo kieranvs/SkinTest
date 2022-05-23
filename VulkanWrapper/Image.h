@@ -3,6 +3,8 @@
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
 
+#include <string>
+
 namespace VulkanWrapper
 {
     struct DeviceManager;
@@ -32,7 +34,18 @@ namespace VulkanWrapper
         void deinit(VkDevice logical_device);
     };
 
+    struct Texture
+    {
+        Image image;
+        VkSampler sampler;
+        std::string path;
+
+        void init(const DeviceManager& device_manager, const std::string& texture_path);
+
+        void deinit(VkDevice logical_device);
+    };
+
     void createImageView(VkDevice logical_device, Image& image, VkImageAspectFlags aspect_flags);
 
-    void uploadTextureData(const DeviceManager& device_manager, Image& image);
+    void uploadTextureData(const DeviceManager& device_manager, Image& image, const std::string& texture_path);
 }

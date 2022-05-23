@@ -88,34 +88,9 @@ namespace VulkanWrapper
                 log_error("Failed to create render pass");
         }
 
-        uploadTextureData(device_manager, texture);
-
-        {
-            VkPhysicalDeviceProperties properties{};
-            vkGetPhysicalDeviceProperties(device_manager.physicalDevice, &properties);
-
-            VkSamplerCreateInfo samplerInfo{};
-            samplerInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
-            samplerInfo.magFilter = VK_FILTER_LINEAR;
-            samplerInfo.minFilter = VK_FILTER_LINEAR;
-            samplerInfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT;
-            samplerInfo.addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT;
-            samplerInfo.addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT;
-            samplerInfo.anisotropyEnable = VK_TRUE;
-            samplerInfo.maxAnisotropy = properties.limits.maxSamplerAnisotropy;
-            samplerInfo.borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK;
-            samplerInfo.unnormalizedCoordinates = VK_FALSE;
-            samplerInfo.compareEnable = VK_FALSE;
-            samplerInfo.compareOp = VK_COMPARE_OP_ALWAYS;
-            samplerInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
-            samplerInfo.mipLodBias = 0.0f;
-            samplerInfo.minLod = 0.0f;
-            samplerInfo.maxLod = static_cast<float>(texture.mip_map_levels);
-
-            if (vkCreateSampler(device_manager.logicalDevice, &samplerInfo, nullptr, &sampler) != VK_SUCCESS)
-                printf("failed to create texture sampler!");
-        }
-
+        std::string path = "../Textures/test_grid.jpeg";
+        texture.init(device_manager, path);
+        
         // create descriptor pool
         descriptor_pool.init(device_manager.logicalDevice, swapchain.images.size(), swapchain.images.size(), swapchain.images.size());
 
@@ -162,7 +137,7 @@ namespace VulkanWrapper
         // create descriptor sets
         {
             std::vector<VkDescriptorSetLayout> layouts(swapchain.images.size(), descriptor_set_layout);
-            descriptor_sets = descriptor_pool.createDescriptorSets(device_manager.logicalDevice, layouts, uniform_buffers, texture, sampler, shader_settings.uniform_bindings);
+            descriptor_sets = descriptor_pool.createDescriptorSets(device_manager.logicalDevice, layouts, uniform_buffers, texture, shader_settings.uniform_bindings);
         }
 
         // create graphics pipeline 
@@ -355,7 +330,6 @@ namespace VulkanWrapper
     void Pipeline::deinit(const DeviceManager& device_manager)
     {
         texture.deinit(device_manager.logicalDevice);
-        vkDestroySampler(device_manager.logicalDevice, sampler, nullptr);
 
         for (auto& buffer : uniform_buffers)
             buffer.deinit(device_manager.logicalDevice);
