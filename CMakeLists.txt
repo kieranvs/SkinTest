@@ -64,6 +64,7 @@ add_executable(
 	VulkanInstance.cpp
 	Vertex.h
 	${VULKAN_WRAPPER}
+	stb_image_impl.cpp
 	Shaders/shader.frag
 	Shaders/shader.vert
 )
