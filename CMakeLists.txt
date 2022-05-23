@@ -67,10 +67,12 @@ add_executable(
 	stb_image_impl.cpp
 	Shaders/shader.frag
 	Shaders/shader.vert
+	ModelLoader.h
+	ModelLoader.cpp
 )
 
-target_include_directories(skin_test PRIVATE . dependencies ${Vulkan_INCLUDE_DIRS})
-target_link_libraries(skin_test PRIVATE Vulkan::Vulkan glfw glm)
+target_include_directories(skin_test PRIVATE . dependencies ${Vulkan_INCLUDE_DIRS} dependencies/assimp/include build/dependencies/assimp/include)
+target_link_libraries(skin_test PRIVATE Vulkan::Vulkan glfw glm assimp)
 
 source_group("VulkanWrapper" FILES ${VULKAN_WRAPPER})
 

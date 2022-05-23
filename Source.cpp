@@ -1,5 +1,6 @@
 #include "VulkanInstance.h"
 #include "Vertex.h"
+#include "ModelLoader.h"
 
 #include <glm/glm.hpp>
 #include "glm/gtc/matrix_transform.hpp"
@@ -59,27 +60,25 @@ int main()
         binding.descriptor_type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
     }
 
-    std::string path = "../Textures/test_grid.png";
+    auto [verts, path] = loadModel("../Models/viking_room.obj", glm::mat4(1.0f));
+
+    path = "../Textures/viking_room.png";
+    
+    printf("verts: %zu", verts.size());
+    printf(path.c_str());
+
     Texture texture;
     texture.init(instance.device_manager, path);
 
+    std::vector<uint32_t> indices{};
+    indices.resize(verts.size());
+    for (int i = 0; i < verts.size(); ++i)
+    {
+        indices[i] = i;
+    }
+
     instance.pipeline.init(instance.device_manager, instance.swapchain, shader_settings, &texture);
 
-    std::vector<Vertex> verts{};
-    std::vector<uint32_t> indices{0, 1, 2, 3, 2, 1};
-    verts.resize(4);
-    verts[0].pos = { -0.5, -0.5, 0.0 };
-    verts[1].pos = { 0.5, -0.5, 0.0 };
-    verts[2].pos = { -0.5, 0.5, 0.0 };
-    verts[3].pos = { 0.5, 0.5, 0.0 };
-    verts[0].colour = { 1.0, 0.0, 0.0 };
-    verts[1].colour = { 0.0, 1.0, 0.0 };
-    verts[2].colour = { 0.0, 0.0, 1.0 };
-    verts[3].colour = { 1.0, 0.0, 0.0 };
-    verts[0].texCoord = { 0, 1 };
-    verts[1].texCoord = { 1, 1 };
-    verts[2].texCoord = { 0, 0 };
-    verts[3].texCoord = { 1, 0 };
 
     uploadBufferData(instance.device_manager, vertex_buffer, verts, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT);
     uploadBufferData(instance.device_manager, index_buffer, indices, VK_BUFFER_USAGE_INDEX_BUFFER_BIT);
