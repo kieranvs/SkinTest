@@ -59,7 +59,11 @@ int main()
         binding.descriptor_type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
     }
 
-    instance.pipeline.init(instance.device_manager, instance.swapchain, shader_settings);
+    std::string path = "../Textures/test_grid.png";
+    Texture texture;
+    texture.init(instance.device_manager, path);
+
+    instance.pipeline.init(instance.device_manager, instance.swapchain, shader_settings, &texture);
 
     std::vector<Vertex> verts{};
     std::vector<uint32_t> indices{0, 1, 2, 3, 2, 1};
@@ -84,5 +88,6 @@ int main()
 
     vertex_buffer.deinit(instance.device_manager.logicalDevice);
     index_buffer.deinit(instance.device_manager.logicalDevice);
+    texture.deinit(instance.device_manager.logicalDevice);
     instance.deinit();
 }
