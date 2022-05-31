@@ -24,12 +24,19 @@ int main()
         vkCmdDrawIndexed(command_buffer, static_cast<uint32_t>(index_buffer.count), 1, 0, 0, 0);
     };
 
-    instance.update_uniforms_callback = [&swapchain = instance.swapchain](Buffer& buffer, VkDevice logical_device)
+    float time_elapsed = 0.0f;
+
+    instance.update_uniforms_callback = [&swapchain = instance.swapchain, &time_elapsed](Buffer& buffer, VkDevice logical_device)
     {
+        time_elapsed += 0.016f;
+
+        float x_pos = std::sin(time_elapsed) * 50.0f;
+        float z_pos = std::cos(time_elapsed) * 50.0f;
+
         UniformData uniform_data{};
         uniform_data.model = glm::mat4(1.0f);
-        uniform_data.view = glm::lookAt(glm::vec3(0.0f, 0.0f, 2.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
-        uniform_data.proj = glm::perspective(glm::radians(45.0f), swapchain.extent.width / (float)swapchain.extent.height, 0.1f, 10.0f);
+        uniform_data.view = glm::lookAt(glm::vec3(x_pos, 20.0f, z_pos), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+        uniform_data.proj = glm::perspective(glm::radians(45.0f), swapchain.extent.width / (float)swapchain.extent.height, 0.1f, 100.0f);
         uniform_data.proj[1][1] *= -1; // correction of inverted Y in OpenGL
 
         uploadData(buffer, logical_device, &uniform_data);
@@ -60,9 +67,7 @@ int main()
         binding.descriptor_type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
     }
 
-    auto [verts, path] = loadModel("../Models/viking_room.obj", glm::mat4(1.0f));
-
-    path = "../Textures/viking_room.png";
+    auto [verts, path] = loadModel("../Models/viking_room_gltf/scene.gltf", glm::mat4(1.0f));
 
     Texture texture;
     texture.init(instance.device_manager, path);
