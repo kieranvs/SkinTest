@@ -3,6 +3,7 @@
 
 #include "VulkanWrapper/Log.h"
 #include "VulkanWrapper/Image.h"
+#include "VulkanWrapper/Buffer.h"
 
 #include "assimp/Importer.hpp"
 #include "assimp/postprocess.h"
@@ -41,7 +42,7 @@ void addMesh(aiMesh* mesh, std::vector<Vertex>& verts, const glm::mat4& bake_tra
 	}
 }
 
-std::pair<std::vector<Vertex>, std::string> loadModel(const std::string& file_path, const glm::mat4& bake_transform)
+void loadModel(const std::string& file_path, const glm::mat4& bake_transform, std::vector<Mesh>& meshes, DeviceManager& device_manager)
 {
 	auto index = file_path.find_last_of("/\\");
 	std::string texture_directory = file_path.substr(0, index + 1);
@@ -52,7 +53,7 @@ std::pair<std::vector<Vertex>, std::string> loadModel(const std::string& file_pa
 	if (!scene || scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE || !scene->mRootNode)
 	{
 		log_error(importer.GetErrorString());
-		return {};
+		return;
 	}
 
 	for (unsigned int i = 0; i < scene->mNumMeshes; i++)
@@ -60,18 +61,28 @@ std::pair<std::vector<Vertex>, std::string> loadModel(const std::string& file_pa
 		std::vector<Vertex> verts;
 		addMesh(scene->mMeshes[i], verts, bake_transform);
 		std::string tex_path;
-		if (!verts.empty())
+		if (verts.empty()) continue;
+
+		aiMaterial* material = scene->mMaterials[scene->mMeshes[i]->mMaterialIndex];
+		if (material->GetTextureCount(aiTextureType_DIFFUSE) == 1)
 		{
-			aiMaterial* material = scene->mMaterials[scene->mMeshes[i]->mMaterialIndex];
-			if (material->GetTextureCount(aiTextureType_DIFFUSE) == 1)
-			{
-				aiString str;
-				material->GetTexture(aiTextureType_DIFFUSE, 0, &str);
-				tex_path = texture_directory + std::string(str.C_Str());
-			}
+			aiString str;
+			material->GetTexture(aiTextureType_DIFFUSE, 0, &str);
+			tex_path = texture_directory + std::string(str.C_Str());
 		}
-		return { verts, tex_path };
+		
+		auto& mesh = meshes.emplace_back();
+		mesh.texture.init(device_manager, tex_path);
+
+	    std::vector<uint32_t> indices{};
+	    indices.resize(verts.size());
+	    for (int i = 0; i < verts.size(); ++i)
+	    {
+	        indices[i] = i;
+	    }
+
+	    uploadBufferData(device_manager, mesh.vertex_buffer, verts, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT);
+	    uploadBufferData(device_manager, mesh.index_buffer, indices, VK_BUFFER_USAGE_INDEX_BUFFER_BIT);
 	}
 
-	return {};
 }

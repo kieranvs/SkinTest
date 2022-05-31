@@ -8,10 +8,10 @@
 
 namespace VulkanWrapper
 {
-    void Pipeline::init(const DeviceManager& device_manager, const Swapchain& swapchain, const ShaderSettings& shader_settings, Texture* texture)
+    void Pipeline::init(const DeviceManager& device_manager, const Swapchain& swapchain, const ShaderSettings& shader_settings, const std::vector<Texture*>& textures)
     {
         this->shader_settings = shader_settings;
-        this->texture_ref = texture;
+        this->texture_refs = textures;
 
         reinit(device_manager, swapchain);
     }
@@ -97,7 +97,7 @@ namespace VulkanWrapper
         }
         
         // create descriptor pool
-        descriptor_pool.init(device_manager.logicalDevice, swapchain.images.size(), swapchain.images.size(), swapchain.images.size());
+        descriptor_pool.init(device_manager.logicalDevice, swapchain.images.size() * texture_refs.size(), swapchain.images.size() * texture_refs.size(), swapchain.images.size() * texture_refs.size());
 
         // create descriptor set layout for uniform buffer
         {
@@ -142,7 +142,7 @@ namespace VulkanWrapper
         // create descriptor sets
         {
             std::vector<VkDescriptorSetLayout> layouts(swapchain.images.size(), descriptor_set_layout);
-            descriptor_sets = descriptor_pool.createDescriptorSets(device_manager.logicalDevice, layouts, uniform_buffers, *texture_ref, shader_settings.uniform_bindings);
+            descriptor_sets = descriptor_pool.createDescriptorSets(device_manager.logicalDevice, layouts, uniform_buffers, texture_refs, shader_settings.uniform_bindings);
         }
 
         // create graphics pipeline 

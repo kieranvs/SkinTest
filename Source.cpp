@@ -7,31 +7,36 @@
 
 int main()
 {
-    VulkanWrapper::Buffer vertex_buffer;
-    VulkanWrapper::Buffer index_buffer;
-    
+    std::vector<Mesh> meshes;
+
     VulkanInstance instance;
 
-    instance.command_buffer_callback = [&vertex_buffer, &index_buffer](const VulkanWrapper::Pipeline& pipeline, const size_t i, const VkCommandBuffer command_buffer) {
-        VkBuffer vertexBuffers[] = { vertex_buffer.handle };
-        VkDeviceSize offsets[] = { 0 };
-        vkCmdBindVertexBuffers(command_buffer, 0, 1, vertexBuffers, offsets);
+    instance.command_buffer_callback = [&meshes](const VulkanWrapper::Pipeline& pipeline, const size_t i, const VkCommandBuffer command_buffer)
+    {
+        for (size_t m = 0; m < meshes.size(); m++)
+        {
+            auto& mesh = meshes[m];
+            VkBuffer vertexBuffers[] = { mesh.vertex_buffer.handle };
+            VkDeviceSize offsets[] = { 0 };
+            vkCmdBindVertexBuffers(command_buffer, 0, 1, vertexBuffers, offsets);
 
-        vkCmdBindIndexBuffer(command_buffer, index_buffer.handle, 0, VK_INDEX_TYPE_UINT32);
+            vkCmdBindIndexBuffer(command_buffer, mesh.index_buffer.handle, 0, VK_INDEX_TYPE_UINT32);
 
-        vkCmdBindDescriptorSets(command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline.pipeline_layout, 0, 1, &pipeline.descriptor_sets[i], 0, nullptr);
+            vkCmdBindDescriptorSets(command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline.pipeline_layout, 0, 1, &pipeline.descriptor_sets[m][i], 0, nullptr);
 
-        vkCmdDrawIndexed(command_buffer, static_cast<uint32_t>(index_buffer.count), 1, 0, 0, 0);
+            vkCmdDrawIndexed(command_buffer, static_cast<uint32_t>(mesh.index_buffer.count), 1, 0, 0, 0);
+        }
     };
 
-    float time_elapsed = 0.0f;
-
-    instance.update_uniforms_callback = [&swapchain = instance.swapchain, &time_elapsed](Buffer& buffer, VkDevice logical_device)
+    auto last_time = glfwGetTime();
+    instance.update_uniforms_callback = [&swapchain = instance.swapchain, &last_time](Buffer& buffer, VkDevice logical_device)
     {
-        time_elapsed += 0.016f;
+        auto new_time = glfwGetTime();
+        auto delta_time = new_time - last_time;
+        last_time = new_time;
 
-        float x_pos = std::sin(time_elapsed) * 50.0f;
-        float z_pos = std::cos(time_elapsed) * 50.0f;
+        float x_pos = std::sin(new_time) * 50.0f;
+        float z_pos = std::cos(new_time) * 50.0f;
 
         UniformData uniform_data{};
         uniform_data.model = glm::mat4(1.0f);
@@ -67,28 +72,26 @@ int main()
         binding.descriptor_type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
     }
 
-    auto [verts, path] = loadModel("../Models/viking_room_gltf/scene.gltf", glm::mat4(1.0f));
+    loadModel("../Models/viking_room_gltf/scene.gltf", glm::mat4(1.0f), meshes, instance.device_manager);
 
-    Texture texture;
-    texture.init(instance.device_manager, path);
+    glm::mat4 duck_mat = glm::mat4(1.0f);
+    duck_mat = glm::translate(duck_mat, glm::vec3(0.0f, 10.0f, 0.0f));
+    duck_mat = glm::scale(duck_mat, glm::vec3(0.02f));
+    loadModel("../Models/duck_gltf/Duck.gltf", duck_mat, meshes, instance.device_manager);
 
-    std::vector<uint32_t> indices{};
-    indices.resize(verts.size());
-    for (int i = 0; i < verts.size(); ++i)
-    {
-        indices[i] = i;
-    }
-
-    instance.pipeline.init(instance.device_manager, instance.swapchain, shader_settings, &texture);
-
-
-    uploadBufferData(instance.device_manager, vertex_buffer, verts, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT);
-    uploadBufferData(instance.device_manager, index_buffer, indices, VK_BUFFER_USAGE_INDEX_BUFFER_BIT);
-
+    std::vector<Texture*> textures;
+    for (auto& mesh : meshes)
+        textures.push_back(&mesh.texture);
+    
+    instance.pipeline.init(instance.device_manager, instance.swapchain, shader_settings, textures);
+    
     instance.mainLoop();
 
-    vertex_buffer.deinit(instance.device_manager.logicalDevice);
-    index_buffer.deinit(instance.device_manager.logicalDevice);
-    texture.deinit(instance.device_manager.logicalDevice);
+    for (auto& mesh : meshes)
+    {
+        mesh.vertex_buffer.deinit(instance.device_manager.logicalDevice);
+        mesh.index_buffer.deinit(instance.device_manager.logicalDevice);
+        mesh.texture.deinit(instance.device_manager.logicalDevice);
+    }
     instance.deinit();
 }

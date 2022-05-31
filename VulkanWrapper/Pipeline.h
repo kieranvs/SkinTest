@@ -18,7 +18,7 @@ namespace VulkanWrapper
 
         VkDescriptorSetLayout descriptor_set_layout;
         DescriptorPool descriptor_pool;
-        std::vector<VkDescriptorSet> descriptor_sets;
+        std::vector<std::vector<VkDescriptorSet>> descriptor_sets;
         
         VkPipeline graphics_pipeline;
         VkPipelineLayout pipeline_layout;
@@ -27,13 +27,13 @@ namespace VulkanWrapper
         Image depth_image;
 
         ShaderSettings shader_settings;
-        Texture* texture_ref;
+        std::vector<Texture*> texture_refs;
 
         std::vector<Buffer> uniform_buffers;
 
         std::vector<VkFramebuffer> framebuffers;
 
-        void init(const DeviceManager& device_manager, const Swapchain& swapchain, const ShaderSettings& shader_settings, Texture* texture);
+        void init(const DeviceManager& device_manager, const Swapchain& swapchain, const ShaderSettings& shader_settings, const std::vector<Texture*>& textures);
         void reinit(const DeviceManager& device_manager, const Swapchain& swapchain);
         void deinit(const DeviceManager& device_manager);
     };

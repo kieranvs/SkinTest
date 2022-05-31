@@ -14,7 +14,7 @@ namespace VulkanWrapper {
 	struct DescriptorPool {
 		VkDescriptorPool handle;
 
-		std::vector<VkDescriptorSet> createDescriptorSets(VkDevice logical_device, const std::vector<VkDescriptorSetLayout>& layouts, const std::vector<Buffer>& uniform_buffers, Texture& texture, const std::vector<VulkanWrapper::UniformBufferBinding>& uniform_buffer_bindings);
+		std::vector<std::vector<VkDescriptorSet>> createDescriptorSets(VkDevice logical_device, const std::vector<VkDescriptorSetLayout>& layouts, const std::vector<Buffer>& uniform_buffers, const std::vector<Texture*>& textures, const std::vector<VulkanWrapper::UniformBufferBinding>& uniform_buffer_bindings);
 
 		void init(VkDevice logical_device, uint32_t uniform_buffer_count, uint32_t sampler_count, uint32_t set_count);
 		void deinit(VkDevice logical_device);
