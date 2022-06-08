@@ -33,8 +33,12 @@ namespace VulkanWrapper
 
         std::vector<VkFramebuffer> framebuffers;
 
-        void init(const DeviceManager& device_manager, const Swapchain& swapchain, const ShaderSettings& shader_settings, const std::vector<Texture*>& textures);
+        int swapchain_image_size;
+
+        void init(const DeviceManager& device_manager, const Swapchain& swapchain, const ShaderSettings& shader_settings);
         void reinit(const DeviceManager& device_manager, const Swapchain& swapchain);
-        void deinit(const DeviceManager& device_manager);
+        void deinit(const DeviceManager& device_manager, const bool pre_reinit);
+
+        void createDescriptorSets(const DeviceManager& device_manager, const std::vector<Texture*>& textures);
     };
 }

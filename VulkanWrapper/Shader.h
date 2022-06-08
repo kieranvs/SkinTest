@@ -25,6 +25,10 @@ namespace VulkanWrapper
         uint32_t input_attribute_descriptions_count;
 
         std::vector<UniformBufferBinding> uniform_bindings;
+
+        uint32_t uniform_descriptor_count;
+        uint32_t texture_descriptor_count;
+        uint32_t descriptor_set_count;
     };
     
     struct Shader

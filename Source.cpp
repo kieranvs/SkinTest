@@ -82,8 +82,13 @@ int main()
     std::vector<Texture*> textures;
     for (auto& mesh : meshes)
         textures.push_back(&mesh.texture);
+
+    shader_settings.uniform_descriptor_count = textures.size();
+    shader_settings.texture_descriptor_count = textures.size();
+    shader_settings.descriptor_set_count = textures.size();
     
-    instance.pipeline.init(instance.device_manager, instance.swapchain, shader_settings, textures);
+    instance.pipeline.init(instance.device_manager, instance.swapchain, shader_settings);
+    instance.pipeline.createDescriptorSets(instance.device_manager, textures);
     
     instance.mainLoop();
 
