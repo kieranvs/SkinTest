@@ -18,7 +18,7 @@ namespace VulkanWrapper
 
         VkDescriptorSetLayout descriptor_set_layout;
         DescriptorPool descriptor_pool;
-        std::vector<std::vector<VkDescriptorSet>> descriptor_sets;
+        std::vector<VkDescriptorSet> descriptor_sets;
         
         VkPipeline graphics_pipeline;
         VkPipelineLayout pipeline_layout;
@@ -27,7 +27,6 @@ namespace VulkanWrapper
         Image depth_image;
 
         ShaderSettings shader_settings;
-        std::vector<Texture*> texture_refs;
 
         std::vector<Buffer> uniform_buffers;
 

@@ -354,9 +354,17 @@ namespace VulkanWrapper
     }
 
     void Pipeline::createDescriptorSets(const DeviceManager& device_manager, const std::vector<Texture*>& textures) {
-        this->texture_refs = textures;
-
-        std::vector<VkDescriptorSetLayout> layouts(swapchain_image_size, descriptor_set_layout);
-        descriptor_sets = descriptor_pool.createDescriptorSets(device_manager.logicalDevice, layouts, uniform_buffers, texture_refs, shader_settings.uniform_bindings);
+        descriptor_sets.resize(swapchain_image_size * textures.size());
+        std::vector<Buffer*> tmp_uniform_buffers(1);
+        std::vector<Texture*> tmp_textures(1);
+        for (size_t i = 0; i < textures.size(); ++i)
+        {
+            for (size_t j = 0; j < swapchain_image_size; ++j)
+            {
+                tmp_uniform_buffers[0] = &uniform_buffers[j];
+                tmp_textures[0] = textures[i];
+                descriptor_sets[i * swapchain_image_size + j] = descriptor_pool.createDescriptorSet(device_manager.logicalDevice, descriptor_set_layout, tmp_uniform_buffers, tmp_textures, shader_settings.uniform_bindings);
+            }
+        }
     }
 }

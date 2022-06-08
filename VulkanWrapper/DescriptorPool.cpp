@@ -34,74 +34,74 @@ namespace VulkanWrapper
             log_error("failed to create descriptor pool");
 	}
 
-    std::vector<std::vector<VkDescriptorSet>> DescriptorPool::createDescriptorSets(VkDevice logical_device, const std::vector<VkDescriptorSetLayout>& layouts, const std::vector<Buffer>& uniform_buffers, const std::vector<Texture*>& textures, const std::vector<VulkanWrapper::UniformBufferBinding>& uniform_buffer_bindings)
+    VkDescriptorSet DescriptorPool::createDescriptorSet(VkDevice logical_device, const VkDescriptorSetLayout& layout, const std::vector<Buffer*>& uniform_buffers, const std::vector<Texture*>& textures, const std::vector<VulkanWrapper::UniformBufferBinding>& uniform_buffer_bindings)
     {
-        std::vector<std::vector<VkDescriptorSet>> descriptor_sets_set;
-        for (auto tex : textures)
+        VkDescriptorSetAllocateInfo allocInfo{};
+        allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+        allocInfo.descriptorPool = handle;
+        allocInfo.descriptorSetCount = 1;
+        allocInfo.pSetLayouts = &layout;
+
+        VkDescriptorSet descriptor_set;
+        if (vkAllocateDescriptorSets(logical_device, &allocInfo, &descriptor_set) != VK_SUCCESS)
+            log_error("failed to allocate descriptor sets!");
+
+        std::vector<VkDescriptorBufferInfo> buffer_infos(uniform_buffer_bindings.size());
+        std::vector<VkDescriptorImageInfo> image_infos(uniform_buffer_bindings.size());
+        std::vector<VkWriteDescriptorSet> descriptor_writes(uniform_buffer_bindings.size());
+
+        VkDeviceSize current_offset = 0;
+        uint32_t current_binding = 0;
+
+        int current_uniform_index = 0;
+        int current_texture_index = 0;
+
+        for (uint32_t current_binding = 0; current_binding < uniform_buffer_bindings.size(); current_binding++)
         {
-            const uint32_t descriptor_set_count = layouts.size();
+            auto& binding = uniform_buffer_bindings[current_binding];
 
-            VkDescriptorSetAllocateInfo allocInfo{};
-            allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
-            allocInfo.descriptorPool = handle;
-            allocInfo.descriptorSetCount = descriptor_set_count;
-            allocInfo.pSetLayouts = layouts.data();
+            auto& descriptor_write = descriptor_writes[current_binding];
+            descriptor_write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+            descriptor_write.dstSet = descriptor_set;
+            descriptor_write.dstBinding = current_binding;
+            descriptor_write.dstArrayElement = 0;
+            descriptor_write.descriptorType = binding.descriptor_type;
+            descriptor_write.descriptorCount = 1;
 
-            auto& descriptor_sets = descriptor_sets_set.emplace_back(descriptor_set_count);
-            if (vkAllocateDescriptorSets(logical_device, &allocInfo, descriptor_sets.data()) != VK_SUCCESS)
-                log_error("failed to allocate descriptor sets!");
-
-            std::vector<VkDescriptorBufferInfo> buffer_infos(uniform_buffer_bindings.size());
-            std::vector<VkDescriptorImageInfo> image_infos(uniform_buffer_bindings.size());
-            std::vector<VkWriteDescriptorSet> descriptor_writes(uniform_buffer_bindings.size());
-
-            for (size_t descriptor_set_index = 0; descriptor_set_index < descriptor_set_count; ++descriptor_set_index)
+            if (binding.descriptor_type == VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER)
             {
-                VkDeviceSize current_offset = 0;
-                uint32_t current_binding = 0;
+                auto& buffer_info = buffer_infos[current_binding];
 
-                for (uint32_t current_binding = 0; current_binding < uniform_buffer_bindings.size(); current_binding++)
-                {
-                    auto& binding = uniform_buffer_bindings[current_binding];
+                buffer_info.buffer = uniform_buffers[current_uniform_index]->handle;
+                buffer_info.offset = current_offset;
+                buffer_info.range = binding.uniform_data_size;
+                current_offset += binding.uniform_data_size;
 
-                    auto& descriptor_write = descriptor_writes[current_binding];
-                    descriptor_write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-                    descriptor_write.dstSet = descriptor_sets[descriptor_set_index];
-                    descriptor_write.dstBinding = current_binding;
-                    descriptor_write.dstArrayElement = 0;
-                    descriptor_write.descriptorType = binding.descriptor_type;
-                    descriptor_write.descriptorCount = 1;
+                descriptor_write.pBufferInfo = &buffer_info;
 
-                    if (binding.descriptor_type == VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER)
-                    {
-                        auto& buffer_info = buffer_infos[current_binding];
-
-                        buffer_info.buffer = uniform_buffers[descriptor_set_index].handle;
-                        buffer_info.offset = current_offset;
-                        buffer_info.range = binding.uniform_data_size;
-                        current_offset += binding.uniform_data_size;
-
-                        descriptor_write.pBufferInfo = &buffer_info;
-                    }
-                    else if (binding.descriptor_type == VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER)
-                    {
-                        auto& image_info = image_infos[current_binding];
-
-                        image_info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-                        image_info.imageView = tex->image.view;
-                        image_info.sampler = tex->sampler;
-
-                        descriptor_write.pImageInfo = &image_info;
-                    }
-                    else
-                        log_error("Unsupported uniform binding type");
-                }
-
-                vkUpdateDescriptorSets(logical_device, static_cast<uint32_t>(descriptor_writes.size()), descriptor_writes.data(), 0, nullptr);
+                ++current_uniform_index;
             }
-        }
+            else if (binding.descriptor_type == VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER)
+            {
+                auto& image_info = image_infos[current_binding];
 
-        return descriptor_sets_set;
+                Texture* tex = textures[current_texture_index];
+
+                image_info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+                image_info.imageView = tex->image.view;
+                image_info.sampler = tex->sampler;
+
+                descriptor_write.pImageInfo = &image_info;
+
+                ++current_texture_index;
+            }
+            else
+                log_error("Unsupported uniform binding type");
+
+        }
+        vkUpdateDescriptorSets(logical_device, static_cast<uint32_t>(descriptor_writes.size()), descriptor_writes.data(), 0, nullptr);
+
+        return descriptor_set;
     }
 
     void DescriptorPool::deinit(VkDevice logical_device)
