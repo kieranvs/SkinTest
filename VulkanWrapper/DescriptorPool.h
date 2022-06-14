@@ -8,13 +8,15 @@
 
 #include <vector>
 
-namespace VulkanWrapper {
+namespace VulkanWrapper
+{
 	struct Texture;
 
-	struct DescriptorPool {
+	struct DescriptorPool
+	{
 		VkDescriptorPool handle;
 
-		VkDescriptorSet createDescriptorSet(VkDevice logical_device, const VkDescriptorSetLayout& layout, const std::vector<Buffer*>& uniform_buffers, const std::vector<Texture*>& textures, const std::vector<VulkanWrapper::UniformBufferBinding>& uniform_buffer_bindings);
+		VkDescriptorSet createDescriptorSet(VkDevice logical_device, const DescriptorSetLayout& layout, const std::vector<Buffer*>& uniform_buffers, const std::vector<Texture*>& textures);
 
 		void init(VkDevice logical_device, uint32_t uniform_buffer_count, uint32_t sampler_count, uint32_t set_count);
 		void deinit(VkDevice logical_device);

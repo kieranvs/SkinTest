@@ -16,10 +16,6 @@ namespace VulkanWrapper
     {
         VkRenderPass render_pass;
 
-        VkDescriptorSetLayout descriptor_set_layout;
-        DescriptorPool descriptor_pool;
-        std::vector<VkDescriptorSet> descriptor_sets;
-        
         VkPipeline graphics_pipeline;
         VkPipelineLayout pipeline_layout;
 
@@ -27,8 +23,6 @@ namespace VulkanWrapper
         Image depth_image;
 
         ShaderSettings shader_settings;
-
-        std::vector<Buffer> uniform_buffers;
 
         std::vector<VkFramebuffer> framebuffers;
 

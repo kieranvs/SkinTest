@@ -1,5 +1,6 @@
 #include "Shader.h"
 
+#include "DeviceManager.h"
 #include "Log.h"
 
 #include <vector>
@@ -7,6 +8,37 @@
 
 namespace VulkanWrapper
 {
+    void DescriptorSetLayout::upload(DeviceManager& device_manager)
+    {
+        if (bindings.empty())
+            log_error("DescriptorSetLayoutInfo bindings not set");
+
+        std::vector<VkDescriptorSetLayoutBinding> vkbindings(bindings.size());
+        for (uint32_t binding_index = 0; binding_index < bindings.size(); binding_index++)
+        {
+            auto& lb = vkbindings[binding_index];
+
+            lb.binding = binding_index;
+            lb.descriptorType = bindings[binding_index].descriptor_type;
+            lb.descriptorCount = 1;
+            lb.stageFlags = bindings[binding_index].stage_flags;
+            lb.pImmutableSamplers = nullptr;
+        }
+
+        VkDescriptorSetLayoutCreateInfo layoutInfo{};
+        layoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+        layoutInfo.bindingCount = static_cast<uint32_t>(vkbindings.size());
+        layoutInfo.pBindings = vkbindings.data();
+
+        if (vkCreateDescriptorSetLayout(device_manager.logicalDevice, &layoutInfo, nullptr, &handle) != VK_SUCCESS)
+            log_error("failed to create descriptor set layout");
+    }
+
+    void DescriptorSetLayout::deinit(DeviceManager& device_manager)
+    {
+        vkDestroyDescriptorSetLayout(device_manager.logicalDevice, handle, nullptr);
+    }
+
     void Shader::init(const std::string& file_path, const Type type, VkDevice logical_device)
     {
         // read file

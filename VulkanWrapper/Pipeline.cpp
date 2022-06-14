@@ -13,49 +13,6 @@ namespace VulkanWrapper
         this->shader_settings = shader_settings;
         this->swapchain_image_size = swapchain.images.size();
 
-        // create descriptor pool
-        descriptor_pool.init(device_manager.logicalDevice, swapchain.images.size() * shader_settings.uniform_descriptor_count, swapchain.images.size() * shader_settings.texture_descriptor_count, swapchain.images.size() * shader_settings.descriptor_set_count);
-
-        // create descriptor set layout for uniform buffer
-        {
-            std::vector<VkDescriptorSetLayoutBinding> bindings;
-            for (uint32_t binding = 0; binding < shader_settings.uniform_bindings.size(); binding++)
-            {
-                VkDescriptorSetLayoutBinding lb{};
-                lb.binding = binding;
-                lb.descriptorType = shader_settings.uniform_bindings[binding].descriptor_type;
-                lb.descriptorCount = 1;
-                lb.stageFlags = shader_settings.uniform_bindings[binding].stage_flags;
-                lb.pImmutableSamplers = nullptr;
-
-                bindings.push_back(lb);
-            }
-
-            VkDescriptorSetLayoutCreateInfo layoutInfo{};
-            layoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-            layoutInfo.bindingCount = static_cast<uint32_t>(bindings.size());
-            layoutInfo.pBindings = bindings.data();
-
-            if (vkCreateDescriptorSetLayout(device_manager.logicalDevice, &layoutInfo, nullptr, &descriptor_set_layout) != VK_SUCCESS)
-                throw std::runtime_error("failed to create descriptor set layout");
-        }
-
-        // Create uniform buffers
-        {
-            VkDeviceSize uniform_data_size = 0;
-            for (const auto& binding : shader_settings.uniform_bindings)
-            {
-                if (binding.descriptor_type == VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER)
-                    uniform_data_size += binding.uniform_data_size;
-            }
-
-            uniform_buffers.resize(swapchain.images.size());
-            for (auto& buffer : uniform_buffers)
-            {
-                buffer.init(device_manager.physicalDevice, device_manager.logicalDevice, uniform_data_size, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
-            }
-        }
-
         reinit(device_manager, swapchain);
     }
 
@@ -233,10 +190,14 @@ namespace VulkanWrapper
             //dynamicState.dynamicStateCount = 2;
             //dynamicState.pDynamicStates = dynamicStates;
 
+            std::vector<VkDescriptorSetLayout> layouts(shader_settings.descriptor_set_layouts.size());
+            for (size_t i = 0; i < shader_settings.descriptor_set_layouts.size(); i++)
+                layouts[i] = shader_settings.descriptor_set_layouts[i].handle;
+
             VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
             pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-            pipelineLayoutInfo.setLayoutCount = 1;
-            pipelineLayoutInfo.pSetLayouts = &descriptor_set_layout;
+            pipelineLayoutInfo.setLayoutCount = shader_settings.descriptor_set_layouts.size();
+            pipelineLayoutInfo.pSetLayouts = &layouts[0];
             pipelineLayoutInfo.pushConstantRangeCount = 0;
             pipelineLayoutInfo.pPushConstantRanges = nullptr;
 
@@ -332,11 +293,6 @@ namespace VulkanWrapper
 
     void Pipeline::deinit(const DeviceManager& device_manager, const bool pre_reinit)
     {
-        if (!pre_reinit) {
-            for (auto& buffer : uniform_buffers)
-                buffer.deinit(device_manager.logicalDevice);
-        }
-
         colour_image.deinit(device_manager.logicalDevice);
         depth_image.deinit(device_manager.logicalDevice);
 
@@ -346,25 +302,7 @@ namespace VulkanWrapper
         vkDestroyPipeline(device_manager.logicalDevice, graphics_pipeline, nullptr);
         vkDestroyPipelineLayout(device_manager.logicalDevice, pipeline_layout, nullptr);
         vkDestroyRenderPass(device_manager.logicalDevice, render_pass, nullptr);
-
-        if (!pre_reinit) {
-            vkDestroyDescriptorSetLayout(device_manager.logicalDevice, descriptor_set_layout, nullptr);
-            descriptor_pool.deinit(device_manager.logicalDevice);
-        }
     }
 
-    void Pipeline::createDescriptorSets(const DeviceManager& device_manager, const std::vector<Texture*>& textures) {
-        descriptor_sets.resize(swapchain_image_size * textures.size());
-        std::vector<Buffer*> tmp_uniform_buffers(1);
-        std::vector<Texture*> tmp_textures(1);
-        for (size_t i = 0; i < textures.size(); ++i)
-        {
-            for (size_t j = 0; j < swapchain_image_size; ++j)
-            {
-                tmp_uniform_buffers[0] = &uniform_buffers[j];
-                tmp_textures[0] = textures[i];
-                descriptor_sets[i * swapchain_image_size + j] = descriptor_pool.createDescriptorSet(device_manager.logicalDevice, descriptor_set_layout, tmp_uniform_buffers, tmp_textures, shader_settings.uniform_bindings);
-            }
-        }
-    }
+    
 }

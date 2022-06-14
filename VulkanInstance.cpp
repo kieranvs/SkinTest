@@ -189,6 +189,7 @@ void VulkanInstance::deinit()
     command_buffer_set.deinit(device_manager);
 
     pipeline.deinit(device_manager, false);
+    descriptor_pool.deinit(device_manager.logicalDevice);
     swapchain.deinit(device_manager);
 
     for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
@@ -278,7 +279,7 @@ void VulkanInstance::mainLoop()
         }
 
         // update uniform buffer
-        update_uniforms_callback(pipeline.uniform_buffers[image_index], device_manager.logicalDevice);
+        update_uniforms_callback(image_index, device_manager.logicalDevice);
 
         // submit command buffer
         {

@@ -34,21 +34,21 @@ namespace VulkanWrapper
             log_error("failed to create descriptor pool");
 	}
 
-    VkDescriptorSet DescriptorPool::createDescriptorSet(VkDevice logical_device, const VkDescriptorSetLayout& layout, const std::vector<Buffer*>& uniform_buffers, const std::vector<Texture*>& textures, const std::vector<VulkanWrapper::UniformBufferBinding>& uniform_buffer_bindings)
+    VkDescriptorSet DescriptorPool::createDescriptorSet(VkDevice logical_device, const DescriptorSetLayout& layout, const std::vector<Buffer*>& uniform_buffers, const std::vector<Texture*>& textures)
     {
         VkDescriptorSetAllocateInfo allocInfo{};
         allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
         allocInfo.descriptorPool = handle;
         allocInfo.descriptorSetCount = 1;
-        allocInfo.pSetLayouts = &layout;
+        allocInfo.pSetLayouts = &layout.handle;
 
         VkDescriptorSet descriptor_set;
         if (vkAllocateDescriptorSets(logical_device, &allocInfo, &descriptor_set) != VK_SUCCESS)
             log_error("failed to allocate descriptor sets!");
 
-        std::vector<VkDescriptorBufferInfo> buffer_infos(uniform_buffer_bindings.size());
-        std::vector<VkDescriptorImageInfo> image_infos(uniform_buffer_bindings.size());
-        std::vector<VkWriteDescriptorSet> descriptor_writes(uniform_buffer_bindings.size());
+        std::vector<VkDescriptorBufferInfo> buffer_infos(layout.bindings.size());
+        std::vector<VkDescriptorImageInfo> image_infos(layout.bindings.size());
+        std::vector<VkWriteDescriptorSet> descriptor_writes(layout.bindings.size());
 
         VkDeviceSize current_offset = 0;
         uint32_t current_binding = 0;
@@ -56,9 +56,9 @@ namespace VulkanWrapper
         int current_uniform_index = 0;
         int current_texture_index = 0;
 
-        for (uint32_t current_binding = 0; current_binding < uniform_buffer_bindings.size(); current_binding++)
+        for (uint32_t current_binding = 0; current_binding < layout.bindings.size(); current_binding++)
         {
-            auto& binding = uniform_buffer_bindings[current_binding];
+            auto& binding = layout.bindings[current_binding];
 
             auto& descriptor_write = descriptor_writes[current_binding];
             descriptor_write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;

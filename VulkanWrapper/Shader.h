@@ -8,11 +8,24 @@
 
 namespace VulkanWrapper
 {
-    struct UniformBufferBinding
+    class DeviceManager;
+
+    struct DescriptorSetLayoutInfo
     {
         VkDescriptorType descriptor_type;
         VkShaderStageFlags stage_flags;
         VkDeviceSize uniform_data_size;
+    };
+
+    struct DescriptorSetLayout
+    {
+        std::vector<DescriptorSetLayoutInfo> bindings;
+        bool update_per_frame = false;
+
+        VkDescriptorSetLayout handle;
+
+        void upload(DeviceManager& device_manager);
+        void deinit(DeviceManager& device_manager);
     };
 
     struct ShaderSettings
@@ -24,7 +37,7 @@ namespace VulkanWrapper
         const VkVertexInputAttributeDescription* input_attribute_descriptions;
         uint32_t input_attribute_descriptions_count;
 
-        std::vector<UniformBufferBinding> uniform_bindings;
+        std::vector<DescriptorSetLayout> descriptor_set_layouts;
 
         uint32_t uniform_descriptor_count;
         uint32_t texture_descriptor_count;
