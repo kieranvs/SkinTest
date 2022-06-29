@@ -15,6 +15,7 @@ namespace VulkanWrapper
         VkDescriptorType descriptor_type;
         VkShaderStageFlags stage_flags;
         VkDeviceSize uniform_data_size;
+        uint32_t count;
     };
 
     struct DescriptorSetLayout
@@ -38,10 +39,6 @@ namespace VulkanWrapper
         uint32_t input_attribute_descriptions_count;
 
         std::vector<DescriptorSetLayout> descriptor_set_layouts;
-
-        uint32_t uniform_descriptor_count;
-        uint32_t texture_descriptor_count;
-        uint32_t descriptor_set_count;
     };
     
     struct Shader

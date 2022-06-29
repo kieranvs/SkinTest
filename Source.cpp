@@ -24,7 +24,9 @@ int main()
 
             vkCmdBindIndexBuffer(command_buffer, mesh.index_buffer.handle, 0, VK_INDEX_TYPE_UINT32);
 
-            vkCmdBindDescriptorSets(command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline.pipeline_layout, 0, 1, &descriptor_sets[m * pipeline.swapchain_image_size + i], 0, nullptr);
+            VkDescriptorSet descriptor_set_ptrs[2] = { descriptor_sets[i], descriptor_sets[pipeline.swapchain_image_size + m] };
+
+            vkCmdBindDescriptorSets(command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline.pipeline_layout, 0, 2, &descriptor_set_ptrs[0], 0, nullptr);
 
             vkCmdDrawIndexed(command_buffer, static_cast<uint32_t>(mesh.index_buffer.count), 1, 0, 0, 0);
         }
@@ -51,6 +53,13 @@ int main()
 
     instance.init();
 
+    loadModel("../Models/viking_room_gltf/scene.gltf", glm::mat4(1.0f), meshes, instance.device_manager);
+
+    glm::mat4 duck_mat = glm::mat4(1.0f);
+    duck_mat = glm::translate(duck_mat, glm::vec3(0.0f, 10.0f, 0.0f));
+    duck_mat = glm::scale(duck_mat, glm::vec3(0.02f));
+    loadModel("../Models/duck_gltf/Duck.gltf", duck_mat, meshes, instance.device_manager);
+
     ShaderSettings shader_settings{};
     shader_settings.vert_addr = "../Shaders/vert.spv";
     shader_settings.frag_addr = "../Shaders/frag.spv";
@@ -60,42 +69,32 @@ int main()
     shader_settings.input_attribute_descriptions_count = attribute_descriptions.size();
 
     {
-        auto& layout = shader_settings.descriptor_set_layouts.emplace_back();
-        layout.update_per_frame = true;
+        shader_settings.descriptor_set_layouts.resize(2);
 
         // Proj view model mat
         {
+            auto& layout = shader_settings.descriptor_set_layouts[0];
+            layout.update_per_frame = true;
             auto& binding = layout.bindings.emplace_back();
             binding.stage_flags = VK_SHADER_STAGE_VERTEX_BIT;
             binding.uniform_data_size = sizeof(UniformData);
-            binding.descriptor_type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;    
+            binding.descriptor_type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;   
+            binding.count = 1;
         }
 
         // Texture sampler
         {
+            auto& layout = shader_settings.descriptor_set_layouts[1];
+            layout.update_per_frame = false;
             auto& binding = layout.bindings.emplace_back();
             binding.stage_flags = VK_SHADER_STAGE_FRAGMENT_BIT;
             binding.descriptor_type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+            binding.count = meshes.size();
         }
     }
-    
-    loadModel("../Models/viking_room_gltf/scene.gltf", glm::mat4(1.0f), meshes, instance.device_manager);
-
-    glm::mat4 duck_mat = glm::mat4(1.0f);
-    duck_mat = glm::translate(duck_mat, glm::vec3(0.0f, 10.0f, 0.0f));
-    duck_mat = glm::scale(duck_mat, glm::vec3(0.02f));
-    loadModel("../Models/duck_gltf/Duck.gltf", duck_mat, meshes, instance.device_manager);
-
-    std::vector<Texture*> textures;
-    for (auto& mesh : meshes)
-        textures.push_back(&mesh.texture);
-
-    shader_settings.uniform_descriptor_count = textures.size();
-    shader_settings.texture_descriptor_count = textures.size();
-    shader_settings.descriptor_set_count = textures.size();
 
     // Create descriptor pool
-    instance.descriptor_pool.init(instance.device_manager.logicalDevice, instance.swapchain.images.size() * shader_settings.uniform_descriptor_count, instance.swapchain.images.size() * shader_settings.texture_descriptor_count, instance.swapchain.images.size() * shader_settings.descriptor_set_count);
+    instance.descriptor_pool.init(instance.device_manager.logicalDevice, instance.swapchain.images.size(), shader_settings.descriptor_set_layouts);
 
     for (auto& layout : shader_settings.descriptor_set_layouts)
         layout.upload(instance.device_manager);
@@ -103,6 +102,7 @@ int main()
     // Create uniform buffers
     {
         VkDeviceSize uniform_data_size = 0;
+
         for (const auto& binding : shader_settings.descriptor_set_layouts[0].bindings)
         {
             if (binding.descriptor_type == VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER)
@@ -118,17 +118,20 @@ int main()
     
     instance.pipeline.init(instance.device_manager, instance.swapchain, shader_settings);
 
-    descriptor_sets.resize(instance.pipeline.swapchain_image_size * textures.size());
+    descriptor_sets.resize(instance.pipeline.swapchain_image_size + meshes.size());
     std::vector<Buffer*> tmp_uniform_buffers(1);
     std::vector<Texture*> tmp_textures(1);
-    for (size_t i = 0; i < textures.size(); ++i)
+
+    for (int i = 0; i < instance.pipeline.swapchain_image_size; ++i)
     {
-        for (size_t j = 0; j < instance.pipeline.swapchain_image_size; ++j)
-        {
-            tmp_uniform_buffers[0] = &uniform_buffers[j];
-            tmp_textures[0] = textures[i];
-            descriptor_sets[i * instance.pipeline.swapchain_image_size + j] = instance.descriptor_pool.createDescriptorSet(instance.device_manager.logicalDevice, shader_settings.descriptor_set_layouts[0], tmp_uniform_buffers, tmp_textures);
-        }
+        tmp_uniform_buffers[0] = &uniform_buffers[i];
+        descriptor_sets[i] = instance.descriptor_pool.createDescriptorSet(instance.device_manager.logicalDevice, shader_settings.descriptor_set_layouts[0], tmp_uniform_buffers, tmp_textures);
+    }
+
+    for (int i = 0; i < meshes.size(); ++i) 
+    {
+        tmp_textures[0] = &meshes[i].texture;
+        descriptor_sets[i + instance.pipeline.swapchain_image_size] = instance.descriptor_pool.createDescriptorSet(instance.device_manager.logicalDevice, shader_settings.descriptor_set_layouts[1], tmp_uniform_buffers, tmp_textures);
     }
     
     instance.mainLoop();

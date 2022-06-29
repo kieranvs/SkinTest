@@ -7,8 +7,33 @@
 
 namespace VulkanWrapper
 {
-	void DescriptorPool::init(VkDevice logical_device, uint32_t uniform_buffer_count, uint32_t sampler_count, uint32_t set_count)
+	void DescriptorPool::init(VkDevice logical_device, const uint32_t swapchain_count, const std::vector<DescriptorSetLayout>& descriptor_set_layouts)
 	{
+        uint32_t uniform_buffer_count = 0;
+        uint32_t sampler_count = 0;
+        uint32_t set_count = 0;
+        for (const auto& layout : descriptor_set_layouts) 
+        {
+            uint32_t multiplier = layout.update_per_frame ? swapchain_count : 1;
+
+            for (const auto& binding : layout.bindings) 
+            {
+                if (binding.descriptor_type == VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER)
+                {
+                    uniform_buffer_count += multiplier * binding.count;
+                }
+                else if (binding.descriptor_type == VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER)
+                {
+                    sampler_count += multiplier * binding.count;
+                }
+                else
+                {
+                    log_error("Unhandled descriptor type!");
+                }
+            }
+        }
+        set_count = uniform_buffer_count + sampler_count;
+
         std::array<VkDescriptorPoolSize, 2> poolSizes{};
         uint32_t i = 0;
         if (uniform_buffer_count > 0)

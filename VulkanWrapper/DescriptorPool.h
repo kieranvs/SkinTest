@@ -18,7 +18,7 @@ namespace VulkanWrapper
 
 		VkDescriptorSet createDescriptorSet(VkDevice logical_device, const DescriptorSetLayout& layout, const std::vector<Buffer*>& uniform_buffers, const std::vector<Texture*>& textures);
 
-		void init(VkDevice logical_device, uint32_t uniform_buffer_count, uint32_t sampler_count, uint32_t set_count);
+		void init(VkDevice logical_device, const uint32_t swapchain_count, const std::vector<DescriptorSetLayout>& descriptor_set_layouts);
 		void deinit(VkDevice logical_device);
 	};
 }
