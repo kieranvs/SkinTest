@@ -5,6 +5,18 @@
 #include <glm/glm.hpp>
 #include "glm/gtc/matrix_transform.hpp"
 
+
+struct ViewInfo
+{
+    alignas(16) glm::mat4 view;
+    alignas(16) glm::mat4 proj;
+};
+
+struct ModelInfo
+{
+    alignas(16) glm::mat4 model;
+};
+
 int main()
 {
     std::vector<Mesh> meshes;
@@ -42,13 +54,12 @@ int main()
         float x_pos = std::sin(new_time) * 50.0f;
         float z_pos = std::cos(new_time) * 50.0f;
 
-        UniformData uniform_data{};
-        uniform_data.model = glm::mat4(1.0f);
-        uniform_data.view = glm::lookAt(glm::vec3(x_pos, 20.0f, z_pos), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
-        uniform_data.proj = glm::perspective(glm::radians(45.0f), swapchain.extent.width / (float)swapchain.extent.height, 0.1f, 100.0f);
-        uniform_data.proj[1][1] *= -1; // correction of inverted Y in OpenGL
+        ViewInfo view_info{};
+        view_info.view = glm::lookAt(glm::vec3(x_pos, 20.0f, z_pos), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+        view_info.proj = glm::perspective(glm::radians(45.0f), swapchain.extent.width / (float)swapchain.extent.height, 0.1f, 100.0f);
+        view_info.proj[1][1] *= -1; // correction of inverted Y in OpenGL
 
-        uploadData(uniform_buffers[image_index], logical_device, &uniform_data);
+        uploadData(uniform_buffers[image_index], logical_device, &view_info);
     };
 
     instance.init();
@@ -77,7 +88,7 @@ int main()
             layout.update_per_frame = true;
             auto& binding = layout.bindings.emplace_back();
             binding.stage_flags = VK_SHADER_STAGE_VERTEX_BIT;
-            binding.uniform_data_size = sizeof(UniformData);
+            binding.uniform_data_size = sizeof(ViewInfo);
             binding.descriptor_type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;   
             binding.count = 1;
         }
@@ -86,10 +97,16 @@ int main()
         {
             auto& layout = shader_settings.descriptor_set_layouts[1];
             layout.update_per_frame = false;
-            auto& binding = layout.bindings.emplace_back();
-            binding.stage_flags = VK_SHADER_STAGE_FRAGMENT_BIT;
-            binding.descriptor_type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-            binding.count = meshes.size();
+            layout.bindings.resize(2);
+
+            layout.bindings[0].stage_flags = VK_SHADER_STAGE_FRAGMENT_BIT;
+            layout.bindings[0].descriptor_type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+            layout.bindings[0].count = meshes.size();
+
+            layout.bindings[1].stage_flags = VK_SHADER_STAGE_VERTEX_BIT;
+            layout.bindings[1].uniform_data_size = sizeof(ModelInfo);
+            layout.bindings[1].descriptor_type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+            layout.bindings[1].count = meshes.size();
         }
     }
 
@@ -101,18 +118,22 @@ int main()
 
     // Create uniform buffers
     {
-        VkDeviceSize uniform_data_size = 0;
+        //VkDeviceSize uniform_data_size = 0;
+        //for (const auto& binding : shader_settings.descriptor_set_layouts[0].bindings)
+        //{
+        //    if (binding.descriptor_type == VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER)
+        //        uniform_data_size += binding.uniform_data_size;
+        //}
 
-        for (const auto& binding : shader_settings.descriptor_set_layouts[0].bindings)
+        uniform_buffers.resize(instance.swapchain.images.size() + meshes.size());
+        for (int i = 0; i < instance.swapchain.images.size(); ++ i)
         {
-            if (binding.descriptor_type == VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER)
-                uniform_data_size += binding.uniform_data_size;
+            uniform_buffers[i].init(instance.device_manager.physicalDevice, instance.device_manager.logicalDevice, sizeof(ViewInfo), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
         }
 
-        uniform_buffers.resize(instance.swapchain.images.size());
-        for (auto& buffer : uniform_buffers)
+        for (int i = 0; i < meshes.size(); ++i)
         {
-            buffer.init(instance.device_manager.physicalDevice, instance.device_manager.logicalDevice, uniform_data_size, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+            uniform_buffers[i + instance.swapchain.images.size()].init(instance.device_manager.physicalDevice, instance.device_manager.logicalDevice, sizeof(ModelInfo), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
         }
     }
     
@@ -131,7 +152,16 @@ int main()
     for (int i = 0; i < meshes.size(); ++i) 
     {
         tmp_textures[0] = &meshes[i].texture;
+        tmp_uniform_buffers[0] = &uniform_buffers[instance.pipeline.swapchain_image_size + i];
         descriptor_sets[i + instance.pipeline.swapchain_image_size] = instance.descriptor_pool.createDescriptorSet(instance.device_manager.logicalDevice, shader_settings.descriptor_set_layouts[1], tmp_uniform_buffers, tmp_textures);
+    }
+
+
+    ModelInfo model_info{};
+    model_info.model = glm::mat4(1.0f);
+    for (int i = 0; i < meshes.size(); ++i) 
+    {
+        uploadData(uniform_buffers[instance.pipeline.swapchain_image_size + i], instance.device_manager.logicalDevice, &model_info);
     }
     
     instance.mainLoop();
