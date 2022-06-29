@@ -20,11 +20,11 @@ namespace VulkanWrapper
             {
                 if (binding.descriptor_type == VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER)
                 {
-                    uniform_buffer_count += multiplier * binding.count;
+                    uniform_buffer_count += multiplier * layout.count;
                 }
                 else if (binding.descriptor_type == VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER)
                 {
-                    sampler_count += multiplier * binding.count;
+                    sampler_count += multiplier * layout.count;
                 }
                 else
                 {

@@ -15,13 +15,13 @@ namespace VulkanWrapper
         VkDescriptorType descriptor_type;
         VkShaderStageFlags stage_flags;
         VkDeviceSize uniform_data_size;
-        uint32_t count;
     };
 
     struct DescriptorSetLayout
     {
         std::vector<DescriptorSetLayoutInfo> bindings;
         bool update_per_frame = false;
+        uint32_t count;
 
         VkDescriptorSetLayout handle;
 

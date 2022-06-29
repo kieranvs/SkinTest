@@ -86,27 +86,26 @@ int main()
         {
             auto& layout = shader_settings.descriptor_set_layouts[0];
             layout.update_per_frame = true;
+            layout.count = 1;
             auto& binding = layout.bindings.emplace_back();
             binding.stage_flags = VK_SHADER_STAGE_VERTEX_BIT;
             binding.uniform_data_size = sizeof(ViewInfo);
             binding.descriptor_type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;   
-            binding.count = 1;
         }
 
         // Texture sampler
         {
             auto& layout = shader_settings.descriptor_set_layouts[1];
             layout.update_per_frame = false;
+            layout.count = meshes.size();
             layout.bindings.resize(2);
 
             layout.bindings[0].stage_flags = VK_SHADER_STAGE_FRAGMENT_BIT;
             layout.bindings[0].descriptor_type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-            layout.bindings[0].count = meshes.size();
 
             layout.bindings[1].stage_flags = VK_SHADER_STAGE_VERTEX_BIT;
             layout.bindings[1].uniform_data_size = sizeof(ModelInfo);
             layout.bindings[1].descriptor_type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-            layout.bindings[1].count = meshes.size();
         }
     }
 
