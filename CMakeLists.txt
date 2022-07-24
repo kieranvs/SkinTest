@@ -34,6 +34,8 @@ add_library(
 	dependencies/imgui/imgui_tables.cpp
 	dependencies/imgui/imgui_widgets.cpp
 	dependencies/imgui/misc/cpp/imgui_stdlib.cpp
+	dependencies/imgui/backends/imgui_impl_vulkan.cpp
+	dependencies/imgui/backends/imgui_impl_glfw.cpp
 )
 target_include_directories(imgui PRIVATE dependencies/imgui)
 target_include_directories(imgui INTERFACE dependencies/imgui dependencies)
@@ -69,10 +71,11 @@ add_executable(
 	Shaders/shader.vert
 	ModelLoader.h
 	ModelLoader.cpp
+	ImguiImpl.cpp
 )
 
 target_include_directories(skin_test PRIVATE . dependencies ${Vulkan_INCLUDE_DIRS} dependencies/assimp/include build/dependencies/assimp/include)
-target_link_libraries(skin_test PRIVATE Vulkan::Vulkan glfw glm assimp)
+target_link_libraries(skin_test PRIVATE Vulkan::Vulkan glfw glm assimp imgui)
 
 source_group("VulkanWrapper" FILES ${VULKAN_WRAPPER})
 

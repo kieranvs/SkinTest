@@ -1,6 +1,7 @@
 #include "VulkanInstance.h"
 #include "Vertex.h"
 #include "ModelLoader.h"
+#include "ImguiImpl.h"
 
 #include <glm/glm.hpp>
 #include "glm/gtc/matrix_transform.hpp"
@@ -64,6 +65,9 @@ int main()
 
     instance.init();
 
+    ImguiImpl imgui{};
+    imgui.init(instance);
+    
     loadModel("../Models/viking_room_gltf/scene.gltf", glm::mat4(1.0f), meshes, instance.device_manager);
 
     glm::mat4 duck_mat = glm::mat4(1.0f);
@@ -177,6 +181,8 @@ int main()
 
     for (auto& layout : shader_settings.descriptor_set_layouts)
         layout.deinit(instance.device_manager);
+
+    imgui.deinit(instance);
 
     instance.deinit();
 }
