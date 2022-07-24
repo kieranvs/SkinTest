@@ -37,8 +37,9 @@ add_library(
 	dependencies/imgui/backends/imgui_impl_vulkan.cpp
 	dependencies/imgui/backends/imgui_impl_glfw.cpp
 )
-target_include_directories(imgui PRIVATE dependencies/imgui)
+target_include_directories(imgui PRIVATE dependencies/imgui ${Vulkan_INCLUDE_DIRS})
 target_include_directories(imgui INTERFACE dependencies/imgui dependencies)
+target_link_libraries(imgui PRIVATE Vulkan::Vulkan glfw)
 
 set_target_properties(imgui PROPERTIES FOLDER "Libraries")
 
