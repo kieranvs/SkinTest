@@ -72,6 +72,7 @@ add_executable(
 	Shaders/shader.vert
 	ModelLoader.h
 	ModelLoader.cpp
+	ImguiImpl.h
 	ImguiImpl.cpp
 )
 
