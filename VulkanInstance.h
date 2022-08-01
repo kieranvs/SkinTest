@@ -41,6 +41,9 @@ struct VulkanInstance
     std::function<void(const VulkanWrapper::Pipeline& pipeline, const size_t i, const VkCommandBuffer command_buffer )> command_buffer_callback;
     std::function<void(size_t image_index, VkDevice logical_device)> update_uniforms_callback;
 
+    std::function<void()> swapchain_recreate_callback;
+    std::function<VkCommandBuffer(size_t)> render_frame_callback;
+
     void init();
     void deinit();
 

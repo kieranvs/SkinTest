@@ -256,7 +256,7 @@ void VulkanInstance::mainLoop()
     while (!glfwWindowShouldClose(window))
     {
         glfwPollEvents();
-        
+
         // image synchronisation
         uint32_t image_index;
         {
@@ -281,6 +281,8 @@ void VulkanInstance::mainLoop()
         // update uniform buffer
         update_uniforms_callback(image_index, device_manager.logicalDevice);
 
+        auto command_buffer = render_frame_callback(currentFrame);
+
         // submit command buffer
         {
             VkSubmitInfo submitInfo{};
@@ -291,8 +293,11 @@ void VulkanInstance::mainLoop()
             submitInfo.waitSemaphoreCount = 1;
             submitInfo.pWaitSemaphores = waitSemaphores;
             submitInfo.pWaitDstStageMask = waitStages;
-            submitInfo.commandBufferCount = 1;
-            submitInfo.pCommandBuffers = &command_buffer_set[image_index];
+
+            std::array<VkCommandBuffer, 2> command_buffers = { command_buffer_set[image_index], command_buffer };
+
+            submitInfo.commandBufferCount = 2;
+            submitInfo.pCommandBuffers = command_buffers.data();
 
             VkSemaphore signalSemaphores[] = { render_finished_semaphores[currentFrame] };
             submitInfo.signalSemaphoreCount = 1;
@@ -362,4 +367,6 @@ void VulkanInstance::recreateSwapChain()
     pipeline.reinit(device_manager, swapchain);
 
     createCommandBuffers();
+
+    swapchain_recreate_callback();
 }

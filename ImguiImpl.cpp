@@ -60,7 +60,7 @@ VkRenderPass createRenderPass(VkDevice logical_device, VkFormat swapchain_format
 
 VkDescriptorPool createDescriptorPool(VkDevice logical_device)
 {
-	VkDescriptorPoolSize pool_sizes[] =
+	std::vector<VkDescriptorPoolSize> pool_sizes =
 	{
 	    { VK_DESCRIPTOR_TYPE_SAMPLER, 1000 },
 	    { VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1000 },
@@ -77,8 +77,8 @@ VkDescriptorPool createDescriptorPool(VkDevice logical_device)
 
 	VkDescriptorPoolCreateInfo poolInfo{};
     poolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
-    poolInfo.poolSizeCount = 1;
-    poolInfo.pPoolSizes = &pool_sizes[0];
+    poolInfo.poolSizeCount = pool_sizes.size();
+    poolInfo.pPoolSizes = pool_sizes.data();
     poolInfo.maxSets = 1000;
 
     VkDescriptorPool pool;
@@ -86,6 +86,27 @@ VkDescriptorPool createDescriptorPool(VkDevice logical_device)
         log_error("failed to create descriptor pool");
 
     return pool;
+}
+
+void createFramebuffers(VulkanInstance& instance, std::vector<VkFramebuffer>& framebuffers, VkRenderPass render_pass)
+{
+    VkImageView attachment[1];
+    VkFramebufferCreateInfo info = {};
+    info.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
+    info.renderPass = render_pass;
+    info.attachmentCount = 1;
+    info.pAttachments = attachment;
+    info.width = instance.swapchain.extent.width;
+    info.height = instance.swapchain.extent.height;
+    info.layers = 1;
+
+    framebuffers.resize(instance.swapchain.images.size());
+    for (uint32_t i = 0; i < instance.swapchain.images.size(); i++)
+    {
+        attachment[0] = instance.swapchain.images[i].view;
+        if (vkCreateFramebuffer(instance.device_manager.logicalDevice, &info, nullptr, &framebuffers[i]) != VK_SUCCESS)
+        	log_error("Failed to create imgui framebuffers");
+    }
 }
 
 void ImguiImpl::init(VulkanInstance& instance)
@@ -115,14 +136,66 @@ void ImguiImpl::init(VulkanInstance& instance)
 
 	render_pass = createRenderPass(instance.device_manager.logicalDevice, instance.swapchain.image_format);
 	ImGui_ImplVulkan_Init(&init_info, render_pass);
+
+	createFramebuffers(instance, framebuffers, render_pass);
+
+	SingleTimeCommandBuffer command_buffer;
+	command_buffer.begin(instance.device_manager);
+	ImGui_ImplVulkan_CreateFontsTexture(command_buffer.getHandle());
+	command_buffer.end(instance.device_manager);
+
+	command_buffer_set.init(instance.device_manager, init_info.ImageCount);
 }
 
 void ImguiImpl::deinit(VulkanInstance& instance)
 {
+	for (size_t i = 0; i < framebuffers.size(); i++)
+		vkDestroyFramebuffer(instance.device_manager.logicalDevice, framebuffers[i], nullptr);
 	vkDestroyRenderPass(instance.device_manager.logicalDevice, render_pass, nullptr);
 
 	ImGui_ImplVulkan_Shutdown();
 	ImGui_ImplGlfw_Shutdown();
 	
 	vkDestroyDescriptorPool(instance.device_manager.logicalDevice, descriptor_pool, nullptr);
+}
+
+void ImguiImpl::swapchainRecreate(VulkanInstance& instance)
+{
+	ImGui_ImplVulkan_SetMinImageCount(instance.swapchain.images.size());
+
+	command_buffer_set.deinit(instance.device_manager);
+	command_buffer_set.init(instance.device_manager, instance.swapchain.images.size());
+}
+
+void ImguiImpl::renderFrame(VulkanInstance& instance, size_t frame_index)
+{
+	ImGui_ImplVulkan_NewFrame();
+	ImGui_ImplGlfw_NewFrame();
+	ImGui::NewFrame();
+	ImGui::ShowDemoWindow();
+	ImGui::Render();
+
+	auto draw_data = ImGui::GetDrawData();
+
+	command_buffer_set.begin(frame_index, 0);
+
+	VkRenderPassBeginInfo renderPassInfo{};
+    renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+    renderPassInfo.renderPass = render_pass;
+    renderPassInfo.framebuffer = framebuffers[frame_index];
+    renderPassInfo.renderArea.offset = { 0, 0 };
+    renderPassInfo.renderArea.extent = instance.swapchain.extent;
+    std::array<VkClearValue, 2> clearValues{};
+    clearValues[0].color = { 0.0f, 0.0f, 0.0f, 1.0f };
+    clearValues[1].depthStencil = { 1.0f, 0 };
+    renderPassInfo.clearValueCount = static_cast<uint32_t>(clearValues.size());
+    renderPassInfo.pClearValues = clearValues.data();
+
+    vkCmdBeginRenderPass(command_buffer_set[frame_index], &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
+    
+	ImGui_ImplVulkan_RenderDrawData(draw_data, command_buffer_set[frame_index]);
+	
+    vkCmdEndRenderPass(command_buffer_set[frame_index]);
+
+	command_buffer_set.end();
 }

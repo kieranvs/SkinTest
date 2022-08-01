@@ -63,9 +63,20 @@ int main()
         uploadData(uniform_buffers[image_index], logical_device, &view_info);
     };
 
+    ImguiImpl imgui{};
+    instance.swapchain_recreate_callback = [&]()
+    {
+        imgui.swapchainRecreate(instance);
+    };
+
+    instance.render_frame_callback = [&](size_t frame_index)
+    {
+        imgui.renderFrame(instance, frame_index);
+        return imgui.command_buffer_set[frame_index];
+    };
+
     instance.init();
 
-    ImguiImpl imgui{};
     imgui.init(instance);
     
     loadModel("../Models/viking_room_gltf/scene.gltf", glm::mat4(1.0f), meshes, instance.device_manager);
