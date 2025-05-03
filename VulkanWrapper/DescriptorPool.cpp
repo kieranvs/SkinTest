@@ -51,6 +51,7 @@ namespace VulkanWrapper
 
         VkDescriptorPoolCreateInfo poolInfo{};
         poolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+        poolInfo.flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT;
         poolInfo.poolSizeCount = i;
         poolInfo.pPoolSizes = poolSizes.data();
         poolInfo.maxSets = set_count;

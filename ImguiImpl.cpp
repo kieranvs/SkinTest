@@ -79,6 +79,7 @@ VkDescriptorPool createDescriptorPool(VkDevice logical_device)
 
 	VkDescriptorPoolCreateInfo poolInfo{};
     poolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+	poolInfo.flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT;
     poolInfo.poolSizeCount = pool_sizes.size();
     poolInfo.pPoolSizes = pool_sizes.data();
     poolInfo.maxSets = 1000;
@@ -131,20 +132,19 @@ void ImguiImpl::init(VulkanInstance& instance)
 	init_info.Queue = instance.device_manager.graphicsQueue;
 	init_info.PipelineCache = VK_NULL_HANDLE;
 	init_info.DescriptorPool = descriptor_pool;
-	init_info.Allocator = nullptr;
+	render_pass = createRenderPass(instance.device_manager.logicalDevice, instance.swapchain.image_format);
+	init_info.RenderPass = render_pass;
+	init_info.Subpass = 0;
 	init_info.MinImageCount = instance.swapchain.images.size();
 	init_info.ImageCount = instance.swapchain.images.size();
+	init_info.MSAASamples = VK_SAMPLE_COUNT_1_BIT;
+	init_info.Allocator = nullptr;
 	init_info.CheckVkResultFn = nullptr;
-
-	render_pass = createRenderPass(instance.device_manager.logicalDevice, instance.swapchain.image_format);
-	ImGui_ImplVulkan_Init(&init_info, render_pass);
+	ImGui_ImplVulkan_Init(&init_info);
 
 	createFramebuffers(instance, framebuffers, render_pass);
 
-	SingleTimeCommandBuffer command_buffer;
-	command_buffer.begin(instance.device_manager);
-	ImGui_ImplVulkan_CreateFontsTexture(command_buffer.getHandle());
-	command_buffer.end(instance.device_manager);
+	ImGui_ImplVulkan_CreateFontsTexture();
 
 	command_buffer_set.init(instance.device_manager, instance.frames_in_flight);
 }

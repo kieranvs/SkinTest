@@ -66,7 +66,8 @@ namespace VulkanWrapper
             resolveAttachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
             resolveAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
             resolveAttachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-            resolveAttachment.finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+            // resolveAttachment.finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+            resolveAttachment.finalLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL; // This only works because the imgui pass which comes next transitions it to presentation
 
             VkAttachmentReference& resolveAttachmentRef = attachment_references[2];
             resolveAttachmentRef.attachment = 2;
