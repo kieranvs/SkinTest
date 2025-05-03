@@ -5,6 +5,8 @@
 #include <imgui/backends/imgui_impl_vulkan.h>
 #include <imgui/backends/imgui_impl_glfw.h>
 
+#include <array>
+
 void check_vk_result(VkResult err)
 {
 	if (err != VK_SUCCESS)
@@ -144,7 +146,7 @@ void ImguiImpl::init(VulkanInstance& instance)
 	ImGui_ImplVulkan_CreateFontsTexture(command_buffer.getHandle());
 	command_buffer.end(instance.device_manager);
 
-	command_buffer_set.init(instance.device_manager, init_info.ImageCount);
+	command_buffer_set.init(instance.device_manager, instance.frames_in_flight);
 }
 
 void ImguiImpl::deinit(VulkanInstance& instance)
@@ -163,11 +165,16 @@ void ImguiImpl::swapchainRecreate(VulkanInstance& instance)
 {
 	ImGui_ImplVulkan_SetMinImageCount(instance.swapchain.images.size());
 
+	for (size_t i = 0; i < framebuffers.size(); i++)
+		vkDestroyFramebuffer(instance.device_manager.logicalDevice, framebuffers[i], nullptr);
+
+	createFramebuffers(instance, framebuffers, render_pass);
+
 	command_buffer_set.deinit(instance.device_manager);
-	command_buffer_set.init(instance.device_manager, instance.swapchain.images.size());
+	command_buffer_set.init(instance.device_manager, instance.frames_in_flight);
 }
 
-void ImguiImpl::renderFrame(VulkanInstance& instance, size_t frame_index)
+void ImguiImpl::renderFrame(VulkanInstance& instance, size_t frame_index, size_t image_index)
 {
 	ImGui_ImplVulkan_NewFrame();
 	ImGui_ImplGlfw_NewFrame();
@@ -182,7 +189,7 @@ void ImguiImpl::renderFrame(VulkanInstance& instance, size_t frame_index)
 	VkRenderPassBeginInfo renderPassInfo{};
     renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
     renderPassInfo.renderPass = render_pass;
-    renderPassInfo.framebuffer = framebuffers[frame_index];
+    renderPassInfo.framebuffer = framebuffers[image_index];
     renderPassInfo.renderArea.offset = { 0, 0 };
     renderPassInfo.renderArea.extent = instance.swapchain.extent;
     std::array<VkClearValue, 2> clearValues{};

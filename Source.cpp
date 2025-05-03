@@ -69,9 +69,9 @@ int main()
         imgui.swapchainRecreate(instance);
     };
 
-    instance.render_frame_callback = [&](size_t frame_index)
+    instance.render_frame_callback = [&](size_t frame_index, size_t image_index)
     {
-        imgui.renderFrame(instance, frame_index);
+        imgui.renderFrame(instance, frame_index, image_index);
         return imgui.command_buffer_set[frame_index];
     };
 

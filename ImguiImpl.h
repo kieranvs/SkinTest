@@ -13,5 +13,5 @@ struct ImguiImpl
 	void deinit(VulkanInstance& instance);
 
 	void swapchainRecreate(VulkanInstance& instance);
-	void renderFrame(VulkanInstance& instance, size_t frame_index);
+	void renderFrame(VulkanInstance& instance, size_t frame_index, size_t image_index);
 };

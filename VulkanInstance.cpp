@@ -24,8 +24,6 @@ VKAPI_ATTR VkBool32 VKAPI_CALL debug_callback(VkDebugUtilsMessageSeverityFlagBit
     return VK_FALSE;
 }
 
-const int MAX_FRAMES_IN_FLIGHT = 2;
-
 std::vector<const char*> getRequiredExtensions()
 {
     std::vector<const char*> extensions;
@@ -157,9 +155,9 @@ void VulkanInstance::init()
 
     // Create sync objects
     {
-        image_available_semaphores.resize(MAX_FRAMES_IN_FLIGHT);
-        render_finished_semaphores.resize(MAX_FRAMES_IN_FLIGHT);
-        frame_finished_fences.resize(MAX_FRAMES_IN_FLIGHT);
+        image_available_semaphores.resize(frames_in_flight);
+        render_finished_semaphores.resize(frames_in_flight);
+        frame_finished_fences.resize(frames_in_flight);
         image_to_frame_fences.resize(swapchain.images.size(), VK_NULL_HANDLE);
 
         // similar to fences but can only be used within or across queues
@@ -170,7 +168,7 @@ void VulkanInstance::init()
         fenceInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
         fenceInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT;
 
-        for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i)
+        for (size_t i = 0; i < frames_in_flight; ++i)
         {
             if (vkCreateSemaphore(device_manager.logicalDevice, &semaphoreInfo, nullptr, &image_available_semaphores[i]) != VK_SUCCESS)
                 log_error("failed to create synchronisation objects for a frame!");
@@ -192,7 +190,7 @@ void VulkanInstance::deinit()
     descriptor_pool.deinit(device_manager.logicalDevice);
     swapchain.deinit(device_manager);
 
-    for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
+    for (int i = 0; i < frames_in_flight; i++)
     {
         vkDestroySemaphore(device_manager.logicalDevice, render_finished_semaphores[i], nullptr);
         vkDestroySemaphore(device_manager.logicalDevice, image_available_semaphores[i], nullptr);
@@ -281,7 +279,7 @@ void VulkanInstance::mainLoop()
         // update uniform buffer
         update_uniforms_callback(image_index, device_manager.logicalDevice);
 
-        auto command_buffer = render_frame_callback(currentFrame);
+        auto command_buffer = render_frame_callback(currentFrame, image_index);
 
         // submit command buffer
         {
@@ -335,7 +333,7 @@ void VulkanInstance::mainLoop()
 
             vkQueueWaitIdle(device_manager.presentQueue);
         }
-        currentFrame = (currentFrame + 1) % MAX_FRAMES_IN_FLIGHT;
+        currentFrame = (currentFrame + 1) % frames_in_flight;
     }
 
     vkDeviceWaitIdle(device_manager.logicalDevice);

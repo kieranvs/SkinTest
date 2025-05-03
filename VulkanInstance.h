@@ -33,6 +33,8 @@ struct VulkanInstance
 
     CommandBufferSet command_buffer_set;
 
+    const int frames_in_flight = 2;
+
     std::vector<VkSemaphore> image_available_semaphores; // Per frame in flight: swap chain image is available to start being used
     std::vector<VkSemaphore> render_finished_semaphores; // Per frame in flight: signalled when command buffers have finished execution
     std::vector<VkFence> frame_finished_fences; // Per frame in flight
@@ -42,7 +44,7 @@ struct VulkanInstance
     std::function<void(size_t image_index, VkDevice logical_device)> update_uniforms_callback;
 
     std::function<void()> swapchain_recreate_callback;
-    std::function<VkCommandBuffer(size_t)> render_frame_callback;
+    std::function<VkCommandBuffer(size_t, size_t)> render_frame_callback;
 
     void init();
     void deinit();
